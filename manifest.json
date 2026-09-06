@@ -1,0 +1,21 @@
+{
+  "name": "OmniWallet - Ví Chi Tiêu Gia Đình",
+  "short_name": "OmniWallet",
+  "description": "Ví chi tiêu thông minh cho gia đình và cá nhân, phân quyền vợ chồng và trợ lý AI.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#070a12",
+  "theme_color": "#070a12",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

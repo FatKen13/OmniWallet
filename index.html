@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>OmniWallet - Ví Chi Tiêu Gia Đình & Cá Nhân</title>
+  <meta name="description" content="OmniWallet - Ví chi tiêu thông minh cho bản thân và gia đình: phân quyền vợ chồng, theo dõi chi phí từng con cái và trợ lý AI tự động.">
+  
+  <!-- PWA & Mobile Icons -->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OmniWallet">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0f19" id="meta-theme-color">
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=1.0">
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div class="app-container">
+
+    <!-- Top App Bar -->
+    <header class="app-header">
+      <div class="brand-box">
+        <div class="brand-icon">
+          <i class="fa-solid fa-wallet"></i>
+        </div>
+        <div>
+          <h1 class="brand-title">OmniWallet</h1>
+          <span class="brand-subtitle" id="vault-status-indicator">Ví Offline An Toàn</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Author Quick Toggle (Chồng / Vợ) -->
+        <button class="author-badge-btn" id="btn-toggle-author" title="Đổi người chi">
+          <span id="author-icon">👨</span>
+          <span id="author-name">Chồng</span>
+        </button>
+
+        <!-- Share Magic Link -->
+        <button class="icon-circle-btn" id="btn-open-sync" title="Chia sẻ qua Zalo cho vợ">
+          <i class="fa-solid fa-share-nodes"></i>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button class="icon-circle-btn" id="btn-toggle-theme" title="Đổi giao diện Sáng/Tối">
+          <i class="fa-solid fa-moon" id="theme-icon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- 3-State Wallet Segmented Control -->
+    <nav class="wallet-nav" aria-label="Chọn ví">
+      <button class="wallet-tab-btn active" data-wallet="personal">
+        <span class="tab-emoji">👤</span>
+        <span>Cá Nhân</span>
+      </button>
+      <button class="wallet-tab-btn" data-wallet="family">
+        <span class="tab-emoji">👨‍👩‍👧</span>
+        <span>Gia Đình</span>
+      </button>
+      <button class="wallet-tab-btn" data-wallet="all">
+        <span class="tab-emoji">🌐</span>
+        <span>Tổng Hợp</span>
+      </button>
+    </nav>
+
+    <!-- Hero Balance Card -->
+    <section class="balance-card">
+      <div class="card-glass-glow"></div>
+      <div class="balance-header">
+        <span class="balance-label" id="current-wallet-label">Số Dư Cá Nhân</span>
+        <button class="eye-toggle-btn" id="btn-toggle-privacy" title="Ẩn/Hiện số tiền">
+          <i class="fa-regular fa-eye" id="eye-icon"></i>
+        </button>
+      </div>
+
+      <div class="balance-amount-box">
+        <span class="balance-val" id="display-balance">0 ₫</span>
+      </div>
+
+      <!-- Income & Expense Sub-stats -->
+      <div class="balance-metrics">
+        <div class="metric-item income">
+          <div class="metric-icon"><i class="fa-solid fa-arrow-down-left"></i></div>
+          <div class="metric-content">
+            <span class="metric-title">Tổng Thu</span>
+            <span class="metric-val" id="display-income">+0 ₫</span>
+          </div>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric-item expense">
+          <div class="metric-icon"><i class="fa-solid fa-arrow-up-right"></i></div>
+          <div class="metric-content">
+            <span class="metric-title">Tổng Chi</span>
+            <span class="metric-val" id="display-expense">-0 ₫</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Budget Progress Bar -->
+      <div class="budget-box" id="budget-box">
+        <div class="budget-info">
+          <span>Ngân sách tháng</span>
+          <span id="budget-text">0% (0 ₫ / 15.000.000 ₫)</span>
+        </div>
+        <div class="budget-progress-track">
+          <div class="budget-progress-bar" id="budget-bar" style="width: 0%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fast Action Pills -->
+    <section class="quick-action-row">
+      <button class="action-pill primary" id="btn-open-add-expense">
+        <i class="fa-solid fa-plus"></i>
+        <span>Thêm Chi Tiêu</span>
+      </button>
+      <button class="action-pill ai-pill" id="btn-open-ai">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <span>Trợ Lý AI</span>
+      </button>
+      <button class="action-pill" id="btn-toggle-analytics">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span id="analytics-btn-text">Báo Cáo</span>
+      </button>
+    </section>
+
+    <!-- Sub-Filter Bar (Child & Author Chips) -->
+    <div class="filter-bar" id="filter-bar">
+      <!-- Author Filter -->
+      <div class="chip-group" id="author-filter-chips">
+        <button class="filter-chip active" data-author="all">Tất cả</button>
+        <button class="filter-chip" data-author="husband">👨 Chồng</button>
+        <button class="filter-chip" data-author="wife">👩 Vợ</button>
+      </div>
+
+      <!-- Child Filter (Visible when viewing Family or All) -->
+      <div class="chip-group" id="child-filter-chips">
+        <button class="filter-chip active" data-child="all">Tất cả con</button>
+        <button class="filter-chip" data-child="Bo">👦 Bé Bo</button>
+        <button class="filter-chip" data-child="Bông">👧 Bé Bông</button>
+      </div>
+    </div>
+
+    <!-- Analytics Section (Collapsible) -->
+    <section class="analytics-view" id="analytics-view" style="display: none;">
+      <!-- Donut Chart -->
+      <div class="analytics-card">
+        <h3 class="card-title"><i class="fa-solid fa-chart-pie"></i> Phân Bổ Theo Danh Mục</h3>
+        <div class="chart-container">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Children Expense Dossier -->
+      <div class="analytics-card" id="children-analytics-card">
+        <h3 class="card-title"><i class="fa-solid fa-children"></i> Chi Phí Nuôi Từng Bé Tháng Này</h3>
+        <div class="children-grid">
+          <div class="child-card">
+            <div class="child-card-header">
+              <span class="child-avatar">👦</span>
+              <div>
+                <h4>Bé Bo</h4>
+                <small>Tiền học, đồ dùng</small>
+              </div>
+            </div>
+            <div class="child-amount" id="child-amount-bo">0 ₫</div>
+          </div>
+
+          <div class="child-card">
+            <div class="child-card-header">
+              <span class="child-avatar">👧</span>
+              <div>
+                <h4>Bé Bông</h4>
+                <small>Mầm non, bỉm sữa</small>
+              </div>
+            </div>
+            <div class="child-amount" id="child-amount-bong">0 ₫</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spouses Comparison Card -->
+      <div class="analytics-card">
+        <h3 class="card-title"><i class="fa-solid fa-scale-balanced"></i> Đóng Góp Chi Tiêu (Chồng vs Vợ)</h3>
+        <div class="spouses-bar-box">
+          <div class="spouses-bar">
+            <div class="spouses-segment husband" id="spouse-bar-husband" style="width: 50%;">50%</div>
+            <div class="spouses-segment wife" id="spouse-bar-wife" style="width: 50%;">50%</div>
+          </div>
+          <div class="spouses-legend">
+            <span><i class="fa-solid fa-circle" style="color: #6366f1;"></i> Chồng: <strong id="spouse-val-husband">0 ₫</strong></span>
+            <span><i class="fa-solid fa-circle" style="color: #ec4899;"></i> Vợ: <strong id="spouse-val-wife">0 ₫</strong></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transactions Timeline -->
+    <main class="timeline-section">
+      <div class="timeline-header">
+        <h2 class="timeline-title">Lịch Sử Chi Tiêu</h2>
+        <span class="timeline-count" id="tx-count">0 giao dịch</span>
+      </div>
+
+      <!-- Transactions List -->
+      <div class="tx-list" id="tx-list">
+        <!-- Dynamic content via JS -->
+      </div>
+    </main>
+
+  </div> <!-- End App Container -->
+
+  <!-- ==================== MODAL 1: THÊM CHI TIÊU SIÊU TỐC ==================== -->
+  <div class="modal-overlay" id="add-modal-overlay">
+    <div class="bottom-sheet" id="add-sheet">
+      <div class="sheet-drag-handle"></div>
+      
+      <div class="sheet-header">
+        <h3 class="sheet-title">Ghi Khoản Chi Mới</h3>
+        <button class="sheet-close-btn" id="btn-close-add-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Type Switcher (Chi / Thu) -->
+      <div class="type-toggle-box">
+        <button class="type-toggle-btn active" id="btn-type-expense" data-type="expense">
+          <i class="fa-solid fa-arrow-trend-down"></i> Khoản Chi
+        </button>
+        <button class="type-toggle-btn" id="btn-type-income" data-type="income">
+          <i class="fa-solid fa-arrow-trend-up"></i> Khoản Thu
+        </button>
+      </div>
+
+      <!-- Big Amount Input -->
+      <div class="amount-display-box">
+        <span class="currency-symbol">₫</span>
+        <input type="text" inputmode="numeric" id="input-amount" class="amount-input" placeholder="0" autofocus>
+      </div>
+
+      <!-- Quick Add Number Pills -->
+      <div class="quick-num-pills">
+        <button class="num-pill" data-val="10000">+10k</button>
+        <button class="num-pill" data-val="50000">+50k</button>
+        <button class="num-pill" data-val="100000">+100k</button>
+        <button class="num-pill" data-val="500000">+500k</button>
+      </div>
+
+      <!-- Wallet & Author Switchers -->
+      <div class="sheet-field-row">
+        <div class="field-col">
+          <label>Ví lưu trữ</label>
+          <div class="mini-segmented" id="sheet-wallet-segmented">
+            <button class="mini-btn active" data-val="personal">👤 Cá Nhân</button>
+            <button class="mini-btn" data-val="family">👨‍👩‍👧 Gia Đình</button>
+          </div>
+        </div>
+        <div class="field-col">
+          <label>Người chi</label>
+          <div class="mini-segmented" id="sheet-author-segmented">
+            <button class="mini-btn active" data-val="husband">👨 Chồng</button>
+            <button class="mini-btn" data-val="wife">👩 Vợ</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Beneficiary Child Chips -->
+      <div class="sheet-field-col" id="sheet-beneficiary-group">
+        <label>Chi cho ai?</label>
+        <div class="child-select-row">
+          <button class="child-btn active" data-val="none">👨‍👩‍👧 Chung cả nhà</button>
+          <button class="child-btn" data-val="Bo">👦 Bé Bo</button>
+          <button class="child-btn" data-val="Bông">👧 Bé Bông</button>
+        </div>
+      </div>
+
+      <!-- Category Selector Grid -->
+      <div class="sheet-field-col">
+        <label>Danh mục</label>
+        <div class="category-grid" id="category-grid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Note & Date -->
+      <div class="sheet-field-col">
+        <label>Ghi chú</label>
+        <input type="text" id="input-note" class="sheet-text-input" placeholder="Ví dụ: Ăn trưa phở bò, Mua sữa...">
+      </div>
+
+      <!-- Save Button -->
+      <button class="save-tx-btn" id="btn-save-tx">
+        <i class="fa-solid fa-check"></i> Lưu Chi Tiêu
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: TRỢ LÝ AI (GEMINI CHAT & VOICE) ==================== -->
+  <div class="modal-overlay" id="ai-modal-overlay">
+    <div class="bottom-sheet ai-sheet" id="ai-sheet">
+      <div class="sheet-drag-handle"></div>
+      
+      <div class="sheet-header">
+        <div class="ai-title-box">
+          <div class="ai-sparkle-badge"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+          <div>
+            <h3 class="sheet-title">Trợ Lý AI Tài Chính</h3>
+            <span class="ai-status">Gõ hoặc nói tự nhiên để ghi tiền</span>
+          </div>
+        </div>
+        <button class="sheet-close-btn" id="btn-close-ai-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Chat Timeline -->
+      <div class="ai-chat-body" id="ai-chat-body">
+        <div class="ai-msg bot">
+          <div class="msg-avatar">🤖</div>
+          <div class="msg-bubble">
+            Xin chào! Tôi là Trợ Lý Tài Chính của gia đình bạn. Bạn có thể nói hoặc nhắn tin như:
+            <ul>
+              <li><em>"Vừa đổ xăng 80k"</em></li>
+              <li><em>"Vợ vừa mua sữa cho Bông 420k"</em></li>
+              <li><em>"Đóng tiền học tiếng Anh cho Bo 2.5tr"</em></li>
+              <li><em>"Hôm nay vợ chi những gì rồi?"</em></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick AI Prompts -->
+      <div class="ai-quick-prompts">
+        <button class="ai-chip" data-prompt="Hôm nay chi tiêu hết bao nhiêu rồi?">Hôm nay tiêu bao nhiêu?</button>
+        <button class="ai-chip" data-prompt="Tháng này tiền học của Bo hết bao nhiêu?">Tiền học của Bo?</button>
+        <button class="ai-chip" data-prompt="So sánh tiền Chồng và Vợ chi tháng này">Chồng vs Vợ ai chi nhiều hơn?</button>
+      </div>
+
+      <!-- Chat Input Box -->
+      <div class="ai-input-bar">
+        <button class="voice-btn" id="btn-voice-input" title="Nói bằng giọng nói">
+          <i class="fa-solid fa-microphone"></i>
+        </button>
+        <input type="text" id="ai-text-input" class="ai-input" placeholder="Nhập: vừa ăn phở 50k, mua sữa cho Bo 350k...">
+        <button class="send-btn" id="btn-ai-send">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 3: CHIA SẺ VÍ GIA ĐÌNH (MAGIC LINK) ==================== -->
+  <div class="modal-overlay" id="sync-modal-overlay">
+    <div class="bottom-sheet" id="sync-sheet">
+      <div class="sheet-drag-handle"></div>
+      
+      <div class="sheet-header">
+        <h3 class="sheet-title">Chia Sẻ Ví Cho Vợ / Chồng</h3>
+        <button class="sheet-close-btn" id="btn-close-sync-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="sync-modal-body">
+        <p class="sync-desc">
+          Gửi đường link bí mật này qua <strong>Zalo</strong> hoặc <strong>Tin Nhắn</strong> cho vợ. Vợ chỉ cần bấm vào link là 2 máy tự động đồng bộ chung 1 ví gia đình!
+        </p>
+
+        <!-- QR Code Display Canvas -->
+        <div class="qr-box">
+          <canvas id="qr-canvas" width="180" height="180"></canvas>
+          <small>Hoặc quét mã QR trực tiếp từ điện thoại của vợ</small>
+        </div>
+
+        <!-- Secret Link Box -->
+        <div class="link-copy-box">
+          <input type="text" id="sync-share-url" readonly class="share-url-input">
+          <button class="copy-url-btn" id="btn-copy-share-url">
+            <i class="fa-regular fa-copy"></i> Sao chép
+          </button>
+        </div>
+
+        <!-- Supabase Realtime Config (Optional / Advanced) -->
+        <details class="advanced-sync-details">
+          <summary><i class="fa-solid fa-cloud"></i> Cấu hình Đồng bộ Đám Mây Supabase</summary>
+          <div class="advanced-content">
+            <small>Nhập thông tin project Supabase miễn phí của bạn để đồng bộ realtime tức thì qua mạng:</small>
+            <input type="text" id="cfg-supabase-url" placeholder="Supabase URL (vd: https://xyz.supabase.co)" class="sheet-text-input">
+            <input type="password" id="cfg-supabase-key" placeholder="Supabase Anon Key" class="sheet-text-input">
+            <button class="btn-save-cfg" id="btn-save-supabase-cfg">Lưu Cấu Hình Supabase</button>
+          </div>
+        </details>
+
+        <!-- Gemini API Key (Optional / Advanced) -->
+        <details class="advanced-sync-details">
+          <summary><i class="fa-solid fa-robot"></i> Cấu hình Google Gemini API Key</summary>
+          <div class="advanced-content">
+            <small>Nhập Gemini API Key miễn phí của bạn để kích hoạt khả năng suy luận tài chính nâng cao:</small>
+            <input type="password" id="cfg-gemini-key" placeholder="AIzaSy..." class="sheet-text-input">
+            <button class="btn-save-cfg" id="btn-save-gemini-cfg">Lưu Gemini Key</button>
+          </div>
+        </details>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Box -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/store.js?v=1.0"></script>
+  <script src="js/ai.js?v=1.0"></script>
+  <script src="js/supabase.js?v=1.0"></script>
+  <script src="js/app.js?v=1.0"></script>
+
+</body>
+</html>
