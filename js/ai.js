@@ -85,13 +85,20 @@ const AIAssistant = (() => {
 
     // Nhận diện ví (Cá nhân hay Gia đình)
     let wallet = "family";
+    const myRole = Store.state.settings.activeAuthor;
+
     if (text.includes("cá nhân") || text.includes("tiêu vặt") || text.includes("riêng")) {
-      wallet = "personal";
+      // Nếu nói về cá nhân nhưng lại là của người kia -> chuyển thành gia đình hoặc cảnh báo
+      if ((myRole === "husband" && text.includes("vợ")) || (myRole === "wife" && text.includes("chồng"))) {
+        wallet = "family";
+      } else {
+        wallet = "personal";
+      }
     } else if (text.includes("gia đình") || text.includes("cả nhà") || text.includes("quỹ chung")) {
       wallet = "family";
     } else {
-      // Mặc định: Nếu chi cho con cái hoặc hóa đơn/chợ -> Gia đình, cafe ăn vặt -> Cá nhân
-      if (beneficiary !== "none" || text.includes("điện") || text.includes("nước") || text.includes("chợ")) {
+      // Tự động: Học tập, con cái, bỉm sữa, chợ búa, hóa đơn điện nước -> GIA ĐÌNH
+      if (beneficiary !== "none" || text.includes("điện") || text.includes("nước") || text.includes("chợ") || text.includes("học") || text.includes("sữa") || text.includes("bỉm")) {
         wallet = "family";
       } else {
         wallet = "personal";
@@ -140,6 +147,17 @@ const AIAssistant = (() => {
     const summary = Store.getFinancialSummary();
     const txs = Store.state.transactions;
     const todayStr = new Date().toISOString().split("T")[0];
+
+    const myRole = Store.state.settings.activeAuthor;
+    const isHusband = myRole === "husband";
+    const spouseTitle = isHusband ? "Vợ" : "Chồng";
+
+    // 0. BẢO MẬT: Nếu hỏi về ví cá nhân của người kia -> TỪ CHỐI
+    if ((q.includes("cá nhân") || q.includes("riêng") || q.includes("quỹ đen")) && 
+        ((isHusband && (q.includes("vợ") || q.includes("cô ấy"))) || 
+         (!isHusband && (q.includes("chồng") || q.includes("anh ấy"))))) {
+      return `🔒 **Bảo mật riêng tư:** Ví cá nhân của ${spouseTitle} được lưu trữ cục bộ trên máy của ${spouseTitle} để đảm bảo tính riêng tư tuyệt đối. Bạn không thể xem ví riêng của ${spouseTitle}, chỉ có thể xem các khoản đóng góp chung trong **Ví Gia Đình**!`;
+    }
 
     // 1. Hỏi hôm nay
     if (q.includes("hôm nay") || q.includes("hnay")) {

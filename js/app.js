@@ -90,11 +90,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const author = Store.state.settings.activeAuthor;
     if (author === "husband") {
       authorIcon.textContent = "👨";
-      authorName.textContent = "Chồng";
+      authorName.textContent = "Chồng (Tôi)";
       btnToggleAuthor.style.borderColor = "var(--husband-color)";
     } else {
       authorIcon.textContent = "👩";
-      authorName.textContent = "Vợ";
+      authorName.textContent = "Vợ (Tôi)";
       btnToggleAuthor.style.borderColor = "var(--wife-color)";
     }
   }
@@ -344,7 +344,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Wallet & Author mini segmented
   setupMiniSegmented("sheet-wallet-segmented");
-  setupMiniSegmented("sheet-author-segmented");
+  setupMiniSegmented("sheet-author-segmented");\n
+  // Điều chỉnh form thêm chi tiêu theo ví được chọn
+  const sheetWalletBtns = document.querySelectorAll("#sheet-wallet-segmented .mini-btn");
+  const sheetBeneficiaryGroup = document.getElementById("sheet-beneficiary-group");
+  const sheetAuthorGroup = document.querySelector("#sheet-author-segmented").closest(".field-col");
+
+  sheetWalletBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const val = btn.getAttribute("data-val");
+      if (val === "personal") {
+        if (sheetBeneficiaryGroup) sheetBeneficiaryGroup.style.display = "none";
+        if (sheetAuthorGroup) sheetAuthorGroup.style.opacity = "0.4";
+        if (sheetAuthorGroup) sheetAuthorGroup.style.pointerEvents = "none";
+      } else {
+        if (sheetBeneficiaryGroup) sheetBeneficiaryGroup.style.display = "flex";
+        if (sheetAuthorGroup) sheetAuthorGroup.style.opacity = "1";
+        if (sheetAuthorGroup) sheetAuthorGroup.style.pointerEvents = "auto";
+      }
+    });
+  });
+
 
   function setupMiniSegmented(id) {
     const el = document.getElementById(id);
@@ -536,7 +556,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ==================== SYNC MODAL & MAGIC LINK ====================
   function setupSyncModal() {
     const vaultId = Store.state.settings.vaultId || "family";
-    const shareUrl = `${window.location.origin}${window.location.pathname}#vault=${vaultId}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}#vault=${vaultId}&role=wife`;
     syncShareUrl.value = shareUrl;
 
     btnOpenSync.addEventListener("click", () => syncModalOverlay.classList.add("active"));
