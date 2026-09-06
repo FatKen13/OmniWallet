@@ -472,6 +472,117 @@ body {
   color: var(--text-primary);
 }
 
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+.card-header-flex .card-title {
+  margin-bottom: 0;
+}
+
+.cashflow-badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cashflow-badge.healthy {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.cashflow-badge.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.cashflow-badge.danger {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.cashflow-metrics {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 0.6rem;
+}
+.cf-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.cf-item.right {
+  align-items: flex-end;
+}
+.cf-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.cf-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.cf-val.highlight {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--income-color);
+}
+
+.cashflow-bar-track {
+  width: 100%;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.cashflow-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, #10b981, #06b6d4);
+  transition: width 0.4s ease, background 0.4s ease;
+}
+
+/* AI Multi Confirm Card */
+.ai-multi-confirm-box {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-glass);
+}
+.ai-multi-item {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+}
+.ai-multi-item:last-of-type {
+  border-bottom: none;
+}
+.ai-multi-item span {
+  font-size: 0.85rem;
+}
+.ai-multi-item small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+.ai-multi-total {
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding-top: 0.3rem;
+  color: var(--brand-primary);
+}
+
 .chart-container {
   position: relative;
   width: 100%;

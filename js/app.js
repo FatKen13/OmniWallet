@@ -53,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const childFilterChips = document.querySelectorAll("#child-filter-chips .filter-chip");
 
   let categoryChart = null;
+  let dailyTrendChart = null;
 
   // 1. Khởi tạo giao diện
   const initialWallet = Store.state.settings.activeWallet || "personal";
@@ -282,13 +283,76 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderAnalytics() {
     const summary = Store.getFinancialSummary();
 
-    // Cập nhật thẻ con cái
+    // 1. Cập nhật Thẻ Dòng Tiền & Tỷ Lệ Tích Lũy
+    const cfRatioText = document.getElementById("cf-ratio-text");
+    const cfSavingsRate = document.getElementById("cf-savings-rate");
+    const cfBadge = document.getElementById("cashflow-health-badge");
+    const cfBarFill = document.getElementById("cf-bar-fill");
+
+    if (cfRatioText && cfSavingsRate && cfBadge && cfBarFill) {
+      cfRatioText.textContent = `${Store.formatMoney(summary.totalIncome)} / ${Store.formatMoney(summary.totalExpense)}`;
+      
+      let savingsRate = 0;
+      if (summary.totalIncome > 0) {
+        savingsRate = Math.round(((summary.totalIncome - summary.totalExpense) / summary.totalIncome) * 100);
+      }
+      cfSavingsRate.textContent = `${savingsRate > 0 ? "+" : ""}${savingsRate}%`;
+
+      if (savingsRate >= 20) {
+        cfBadge.className = "cashflow-badge healthy";
+        cfBadge.textContent = "🟢 Tích lũy tốt (>20%)";
+        cfSavingsRate.style.color = "var(--income-color)";
+        cfBarFill.style.background = "linear-gradient(90deg, #10b981, #06b6d4)";
+      } else if (savingsRate >= 0) {
+        cfBadge.className = "cashflow-badge warning";
+        cfBadge.textContent = "🟡 Cân bằng (0-20%)";
+        cfSavingsRate.style.color = "var(--brand-primary)";
+        cfBarFill.style.background = "linear-gradient(90deg, #f59e0b, #6366f1)";
+      } else {
+        cfBadge.className = "cashflow-badge danger";
+        cfBadge.textContent = "🔴 Thâm hụt ngân sách";
+        cfSavingsRate.style.color = "var(--expense-color)";
+        cfBarFill.style.background = "linear-gradient(90deg, #ef4444, #f43f5e)";
+      }
+
+      const totalFlow = summary.totalIncome + summary.totalExpense;
+      const incomeFillPercent = totalFlow > 0 ? Math.round((summary.totalIncome / totalFlow) * 100) : 50;
+      cfBarFill.style.width = incomeFillPercent + "%";
+    }
+
+    // 2. Cập nhật thẻ & thanh so sánh 2 con cái (Bo vs Bông)
     const boEl = document.getElementById("child-amount-bo");
     const bongEl = document.getElementById("child-amount-bong");
     if (boEl) boEl.textContent = Store.formatMoney(summary.childBo);
     if (bongEl) bongEl.textContent = Store.formatMoney(summary.childBong);
 
-    // Cập nhật thanh so sánh Chồng vs Vợ
+    const childBarBo = document.getElementById("child-bar-bo");
+    const childBarBong = document.getElementById("child-bar-bong");
+    const totalChildExpense = summary.childBo + summary.childBong;
+
+    if (childBarBo && childBarBong) {
+      if (totalChildExpense === 0) {
+        childBarBo.style.width = "100%";
+        childBarBo.textContent = "Chưa có chi phí cho con";
+        childBarBo.style.background = "var(--border-glass-strong)";
+        childBarBong.style.display = "none";
+      } else {
+        const boPercent = Math.round((summary.childBo / totalChildExpense) * 100);
+        const bongPercent = 100 - boPercent;
+
+        childBarBo.style.display = "flex";
+        childBarBo.style.background = "#6366f1";
+        childBarBo.style.width = Math.max(boPercent, 10) + "%";
+        childBarBo.textContent = boPercent >= 15 ? `Bo: ${boPercent}%` : "";
+
+        childBarBong.style.display = bongPercent > 0 ? "flex" : "none";
+        childBarBong.style.background = "#ec4899";
+        childBarBong.style.width = Math.max(bongPercent, 10) + "%";
+        childBarBong.textContent = bongPercent >= 15 ? `Bông: ${bongPercent}%` : "";
+      }
+    }
+
+    // 3. Cập nhật thanh so sánh Chồng vs Vợ
     const barH = document.getElementById("spouse-bar-husband");
     const barW = document.getElementById("spouse-bar-wife");
     if (barH && barW) {
@@ -316,49 +380,100 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("spouse-val-husband").textContent = Store.formatMoney(summary.husbandTotal);
     document.getElementById("spouse-val-wife").textContent = Store.formatMoney(summary.wifeTotal);
 
-    // Cập nhật Chart.js
+    // 4. Cập nhật Chart.js
+    if (typeof Chart === "undefined") return;
+
+    // A. Biểu đồ Cột Xu Hướng 7 Ngày Gần Nhất
+    const dailyData = Store.getDailyExpenseTrend(7);
+    const dailyCtx = document.getElementById("dailyTrendChart");
+    if (dailyCtx) {
+      if (dailyTrendChart) {
+        dailyTrendChart.destroy();
+        dailyTrendChart = null;
+      }
+      try {
+        dailyTrendChart = new Chart(dailyCtx, {
+          type: "bar",
+          data: {
+            labels: dailyData.labels,
+            datasets: [{
+              label: "Chi tiêu",
+              data: dailyData.data,
+              backgroundColor: "rgba(99, 102, 241, 0.75)",
+              hoverBackgroundColor: "#6366f1",
+              borderRadius: 6,
+              borderSkipped: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => " " + Store.formatMoney(context.raw)
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { color: "#94a3b8", font: { family: "Plus Jakarta Sans", size: 11 } }
+              },
+              y: {
+                grid: { color: "rgba(255, 255, 255, 0.05)" },
+                ticks: {
+                  color: "#94a3b8",
+                  font: { family: "Plus Jakarta Sans", size: 10 },
+                  callback: (value) => value >= 1000000 ? (value / 1000000) + "M" : (value >= 1000 ? (value / 1000) + "k" : value)
+                }
+              }
+            }
+          }
+        });
+      } catch (e) {
+        console.warn("dailyTrendChart creation error:", e);
+      }
+    }
+
+    // B. Biểu đồ Tròn Phân Bổ Theo Danh Mục
     const catData = Store.getCategoryBreakdown();
     const ctx = document.getElementById("categoryChart");
-    if (!ctx) return;
+    if (ctx) {
+      if (categoryChart) {
+        categoryChart.destroy();
+        categoryChart = null;
+      }
 
-    if (categoryChart) {
-      categoryChart.destroy();
-      categoryChart = null;
-    }
-
-    if (catData.data.length === 0) {
-      return;
-    }
-
-    if (typeof Chart === "undefined") {
-      return;
-    }
-
-    try {
-      categoryChart = new Chart(ctx, {
-        type: "doughnut",
-        data: {
-          labels: catData.labels,
-          datasets: [{
-            data: catData.data,
-            backgroundColor: catData.colors,
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: "right",
-              labels: { color: "#94a3b8", font: { family: "Plus Jakarta Sans", size: 11 } }
+      if (catData.data.length > 0) {
+        try {
+          categoryChart = new Chart(ctx, {
+            type: "doughnut",
+            data: {
+              labels: catData.labels,
+              datasets: [{
+                data: catData.data,
+                backgroundColor: catData.colors,
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: "right",
+                  labels: { color: "#94a3b8", font: { family: "Plus Jakarta Sans", size: 11 } }
+                }
+              },
+              cutout: "68%"
             }
-          },
-          cutout: "68%"
+          });
+        } catch (e) {
+          console.warn("Chart creation error:", e);
         }
-      });
-    } catch (e) {
-      console.warn("Chart creation error:", e);
+      }
     }
   }
 
@@ -641,32 +756,71 @@ document.addEventListener("DOMContentLoaded", () => {
     // 1. Kiểm tra xem có phải lệnh ghi tiền không
     const parsed = AIAssistant.parseNaturalTextOffline(prompt);
 
-    if (parsed.isCommand && parsed.data) {
-      const d = parsed.data;
-      const catName = Store.CATEGORIES.find(c => c.id === d.category)?.name || d.category;
-      const authorName = d.author === "wife" ? "Vợ" : "Chồng";
-      const walletName = d.wallet === "family" ? "Gia Đình" : "Cá Nhân";
-      const childText = d.beneficiary !== "none" ? `(Bé ${d.beneficiary})` : "";
+    if (parsed.isCommand) {
+      // Trường hợp 1: Nhận diện nhiều giao dịch trong 1 câu (VD: "ăn trưa 50k và đổ xăng 80k")
+      if (parsed.isMultiple && parsed.dataList && parsed.dataList.length > 0) {
+        let totalAmt = 0;
+        let listHtml = `Tôi đã nhận diện được **${parsed.dataList.length}** khoản chi tiêu cùng lúc:<div class="ai-multi-confirm-box">`;
+        
+        parsed.dataList.forEach((d, idx) => {
+          totalAmt += d.amount;
+          const cat = Store.CATEGORIES.find(c => c.id === d.category) || { emoji: "✨", name: d.category };
+          const authorName = d.author === "wife" ? "👩 Vợ" : "👨 Chồng";
+          const walletName = d.wallet === "family" ? "Gia Đình" : "Cá Nhân";
+          const childText = d.beneficiary !== "none" ? ` (Bé ${d.beneficiary})` : "";
 
-      const confirmHtml = `
-        Tôi đã nhận diện giao dịch này:
-        <div class="ai-confirm-card">
-          <strong>Số tiền: ${Store.formatMoney(d.amount)}</strong>
-          <span>Danh mục: ${catName} ${childText}</span>
-          <span>Người chi: ${authorName} • Ví: ${walletName}</span>
-          <span>Ghi chú: "${d.note}"</span>
-          <button class="btn-confirm-ai" id="btn-save-ai-parsed">Xác Nhận & Lưu Ngay</button>
-        </div>
-      `;
-      appendAIMsg("bot", confirmHtml);
+          listHtml += `
+            <div class="ai-multi-item">
+              <span><strong>${idx + 1}. ${d.note}</strong>: ${Store.formatMoney(d.amount)}</span>
+              <small>${cat.emoji} ${cat.name}${childText} • ${authorName} • Ví ${walletName}</small>
+            </div>
+          `;
+        });
 
-      document.getElementById("btn-save-ai-parsed")?.addEventListener("click", () => {
-        Store.addTransaction(d);
-        renderAll();
-        appendAIMsg("bot", `✅ Đã lưu thành công **${Store.formatMoney(d.amount)}** vào ví!`);
-        showToast("AI đã lưu khoản chi thành công!");
-      });
-      return;
+        listHtml += `
+          <div class="ai-multi-total">Tổng cộng: <strong>${Store.formatMoney(totalAmt)}</strong></div>
+          <button class="btn-confirm-ai" id="btn-save-ai-multi">Xác Nhận & Lưu Toàn Bộ ${parsed.dataList.length} Khoản</button>
+        </div>`;
+
+        appendAIMsg("bot", listHtml);
+
+        document.getElementById("btn-save-ai-multi")?.addEventListener("click", () => {
+          parsed.dataList.forEach(d => Store.addTransaction(d));
+          renderAll();
+          appendAIMsg("bot", `✅ Đã lưu thành công **${parsed.dataList.length}** khoản chi (tổng **${Store.formatMoney(totalAmt)}**) vào ví!`);
+          showToast(`Đã lưu ${parsed.dataList.length} giao dịch!`, "fa-circle-check");
+        });
+        return;
+      }
+
+      // Trường hợp 2: Giao dịch đơn lẻ
+      if (parsed.data) {
+        const d = parsed.data;
+        const cat = Store.CATEGORIES.find(c => c.id === d.category) || { emoji: "✨", name: d.category };
+        const authorName = d.author === "wife" ? "Vợ" : "Chồng";
+        const walletName = d.wallet === "family" ? "Gia Đình" : "Cá Nhân";
+        const childText = d.beneficiary !== "none" ? `(Bé ${d.beneficiary})` : "";
+
+        const confirmHtml = `
+          Tôi đã nhận diện giao dịch này:
+          <div class="ai-confirm-card">
+            <strong>Số tiền: ${Store.formatMoney(d.amount)}</strong>
+            <span>Danh mục: ${cat.emoji} ${cat.name} ${childText}</span>
+            <span>Người chi: ${authorName} • Ví: ${walletName}</span>
+            <span>Ghi chú: "${d.note}"</span>
+            <button class="btn-confirm-ai" id="btn-save-ai-parsed">Xác Nhận & Lưu Ngay</button>
+          </div>
+        `;
+        appendAIMsg("bot", confirmHtml);
+
+        document.getElementById("btn-save-ai-parsed")?.addEventListener("click", () => {
+          Store.addTransaction(d);
+          renderAll();
+          appendAIMsg("bot", `✅ Đã lưu thành công **${Store.formatMoney(d.amount)}** vào ví!`);
+          showToast("AI đã lưu khoản chi thành công!");
+        });
+        return;
+      }
     }
 
     // 2. Nếu là câu hỏi -> Thử Gemini trước, nếu không có key -> Trả lời bằng Offline NLP

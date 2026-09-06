@@ -1,12 +1,12 @@
-const CACHE_NAME = "omniwallet-cache-v3";
+const CACHE_NAME = "omniwallet-cache-v4";
 const ASSETS = [
   "./",
   "./index.html",
-  "./style.css?v=1.2",
-  "./js/store.js?v=1.2",
-  "./js/ai.js?v=1.2",
-  "./js/supabase.js?v=1.2",
-  "./js/app.js?v=1.2",
+  "./style.css?v=1.3",
+  "./js/store.js?v=1.3",
+  "./js/ai.js?v=1.3",
+  "./js/supabase.js?v=1.3",
+  "./js/app.js?v=1.3",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",

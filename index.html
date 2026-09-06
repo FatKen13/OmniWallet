@@ -30,7 +30,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.2">
+  <link rel="stylesheet" href="style.css?v=1.3">
 </head>
 <body>
 
@@ -164,24 +164,54 @@
 
     <!-- Analytics Section (Collapsible) -->
     <section class="analytics-view" id="analytics-view" style="display: none;">
-      <!-- Donut Chart -->
+
+      <!-- Card 1: Dòng Tiền & Tỷ Lệ Tiết Kiệm (Cash Flow & Financial Health) -->
+      <div class="analytics-card">
+        <div class="card-header-flex">
+          <h3 class="card-title"><i class="fa-solid fa-scale-unbalanced"></i> Dòng Tiền & Tỷ Lệ Tích Lũy</h3>
+          <span class="cashflow-badge healthy" id="cashflow-health-badge">🟢 Tích lũy tốt</span>
+        </div>
+        <div class="cashflow-metrics">
+          <div class="cf-item">
+            <span class="cf-label">Thu / Chi</span>
+            <span class="cf-val" id="cf-ratio-text">0 ₫ / 0 ₫</span>
+          </div>
+          <div class="cf-item right">
+            <span class="cf-label">Tỷ lệ tích lũy</span>
+            <span class="cf-val highlight" id="cf-savings-rate">0%</span>
+          </div>
+        </div>
+        <div class="cashflow-bar-track">
+          <div class="cashflow-bar-fill" id="cf-bar-fill" style="width: 50%;"></div>
+        </div>
+      </div>
+
+      <!-- Card 2: Xu Hướng Chi Tiêu 7 Ngày Gần Nhất (Daily Trend Bar Chart) -->
+      <div class="analytics-card">
+        <h3 class="card-title"><i class="fa-solid fa-chart-column"></i> Xu Hướng Chi Tiêu 7 Ngày Qua</h3>
+        <div class="chart-container" style="height: 180px;">
+          <canvas id="dailyTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Card 3: Donut Chart Phân Bổ Theo Danh Mục -->
       <div class="analytics-card">
         <h3 class="card-title"><i class="fa-solid fa-chart-pie"></i> Phân Bổ Theo Danh Mục</h3>
-        <div class="chart-container">
+        <div class="chart-container" style="height: 200px;">
           <canvas id="categoryChart"></canvas>
         </div>
       </div>
 
-      <!-- Children Expense Dossier -->
+      <!-- Card 4: Children Expense Dossier & Comparison -->
       <div class="analytics-card" id="children-analytics-card">
-        <h3 class="card-title"><i class="fa-solid fa-children"></i> Chi Phí Nuôi Từng Bé Tháng Này</h3>
+        <h3 class="card-title"><i class="fa-solid fa-children"></i> Chi Phí Nuôi Con (Bé Bo vs Bé Bông)</h3>
         <div class="children-grid">
           <div class="child-card">
             <div class="child-card-header">
               <span class="child-avatar">👦</span>
               <div>
                 <h4>Bé Bo</h4>
-                <small>Tiền học, đồ dùng</small>
+                <small>Học tập, đồ dùng</small>
               </div>
             </div>
             <div class="child-amount" id="child-amount-bo">0 ₫</div>
@@ -198,9 +228,16 @@
             <div class="child-amount" id="child-amount-bong">0 ₫</div>
           </div>
         </div>
+        <!-- Thanh so sánh tỷ trọng chi cho 2 con -->
+        <div class="children-bar-box" id="children-bar-box" style="margin-top: 0.85rem;">
+          <div class="spouses-bar">
+            <div class="spouses-segment" id="child-bar-bo" style="background: #6366f1; width: 50%;">Bo: 50%</div>
+            <div class="spouses-segment" id="child-bar-bong" style="background: #ec4899; width: 50%;">Bông: 50%</div>
+          </div>
+        </div>
       </div>
 
-      <!-- Spouses Comparison Card -->
+      <!-- Card 5: Spouses Comparison Card -->
       <div class="analytics-card">
         <h3 class="card-title"><i class="fa-solid fa-scale-balanced"></i> Đóng Góp Chi Tiêu (Chồng vs Vợ)</h3>
         <div class="spouses-bar-box">
@@ -214,6 +251,7 @@
           </div>
         </div>
       </div>
+
     </section>
 
     <!-- Transactions Timeline -->
@@ -351,8 +389,11 @@
       <!-- Quick AI Prompts -->
       <div class="ai-quick-prompts">
         <button class="ai-chip" data-prompt="Hôm nay chi tiêu hết bao nhiêu rồi?">Hôm nay tiêu bao nhiêu?</button>
-        <button class="ai-chip" data-prompt="Tháng này tiền học của Bo hết bao nhiêu?">Tiền học của Bo?</button>
+        <button class="ai-chip" data-prompt="Đánh giá chi tiêu và cho tôi lời khuyên tiết kiệm">💡 Lời khuyên tiết kiệm</button>
+        <button class="ai-chip" data-prompt="Dự báo ngân sách tháng này thế nào?">📈 Dự báo ngân sách</button>
+        <button class="ai-chip" data-prompt="Danh mục nào đang tốn tiền nhất?">📊 Mục tốn tiền nhất?</button>
         <button class="ai-chip" data-prompt="So sánh tiền Chồng và Vợ chi tháng này">Chồng vs Vợ ai chi nhiều hơn?</button>
+        <button class="ai-chip" data-prompt="Tháng này chi cho Bo và Bông hết bao nhiêu?">Chi cho 2 con?</button>
       </div>
 
       <!-- Chat Input Box -->
@@ -427,10 +468,10 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JavaScript Modules -->
-  <script src="js/store.js?v=1.2"></script>
-  <script src="js/ai.js?v=1.2"></script>
-  <script src="js/supabase.js?v=1.2"></script>
-  <script src="js/app.js?v=1.2"></script>
+  <script src="js/store.js?v=1.3"></script>
+  <script src="js/ai.js?v=1.3"></script>
+  <script src="js/supabase.js?v=1.3"></script>
+  <script src="js/app.js?v=1.3"></script>
 
 </body>
 </html>

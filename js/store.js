@@ -329,6 +329,32 @@ const Store = (() => {
     return { labels, data, colors };
   }
 
+  // Lấy xu hướng chi tiêu 7 ngày gần nhất cho Biểu đồ Cột
+  function getDailyExpenseTrend(days = 7) {
+    const txs = getFilteredTransactions().filter(t => t.type === "expense");
+    const labels = [];
+    const data = [];
+    const now = new Date();
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+
+      labels.push(`${day}/${month}`);
+
+      const dayTotal = txs
+        .filter(t => t.date && t.date.startsWith(dateStr))
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      data.push(dayTotal);
+    }
+
+    return { labels, data };
+  }
+
   function formatMoney(amount) {
     if (isNaN(amount) || amount === null) return "0 ₫";
     return Math.round(amount).toLocaleString("vi-VN") + " ₫";
@@ -343,6 +369,7 @@ const Store = (() => {
     getFilteredTransactions,
     getFinancialSummary,
     getCategoryBreakdown,
+    getDailyExpenseTrend,
     formatMoney,
     saveSettings
   };

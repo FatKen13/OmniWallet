@@ -1,28 +1,150 @@
 /**
- * OmniWallet AI Assistant Engine
- * - Hỗ trợ cả 2 chế độ:
- *   1. Offline NLP Engine (Bóc tách câu tự nhiên siêu nhạy, hiểu 2m5, 1tr5, củ rưỡi, lít rưỡi, xị, lốp...)
- *   2. Google Gemini API (Khi có Key: suy luận tài chính chuyên sâu, cố vấn chi tiêu)
+ * OmniWallet AI Assistant Engine (V2 - Ultra Smart)
+ * - Đa chế độ thông minh:
+ *   1. Offline NLP Engine (Bóc tách câu tự nhiên siêu nhạy, đa giao dịch trong 1 câu, nhận diện ngày tự nhiên)
+ *   2. Cố vấn Tài chính Offline (Tự phân tích ngân sách, burn-rate, cảnh báo thâm hụt và lời khuyên tiết kiệm)
+ *   3. Google Gemini 1.5 Flash API (Cố vấn tài chính gia đình cao cấp khi có API Key)
  */
 
 const AIAssistant = (() => {
   const GEMINI_KEY_STORAGE = "omniwallet_gemini_key";
 
-  // Từ khóa nhận diện danh mục
+  // Từ điển nhận diện danh mục ngữ nghĩa phong phú
   const CATEGORY_RULES = [
-    { id: "food", words: ["phở", "bún", "cơm", "ăn", "uống", "cà phê", "cafe", "trà", "bánh", "pizza", "lẩu", "nhậu", "tiệc", "ăn sáng", "ăn trưa", "ăn tối"] },
-    { id: "market", words: ["chợ", "siêu thị", "vinmart", "coop", "thịt", "rau", "cá", "trứng", "gia vị", "dầu ăn", "thực phẩm", "đi chợ"] },
-    { id: "education", words: ["học", "học phí", "trường", "sách", "vở", "tiếng anh", "gia sư", "bơi", "đàn", "vẽ", "bút", "khóa học"] },
-    { id: "baby", words: ["sữa", "bỉm", "tã", "nan", "meiji", "quần áo bé", "đồ chơi", "tiêm chủng", "khám nhi", "mầm non"] },
-    { id: "transport", words: ["xăng", "đổ xăng", "xe", "rửa xe", "bảo dưỡng", "grab", "taxi", "gửi xe", "vé xe", "thay nhớt"] },
-    { id: "bills", words: ["điện", "nước", "internet", "wifi", "truyền hình", "chung cư", "phí dịch vụ", "thuê nhà", "hóa đơn"] },
-    { id: "shopping", words: ["áo", "quần", "váy", "giày", "dép", "shopee", "tiki", "lazada", "mỹ phẩm", "son", "mua sắm"] },
-    { id: "health", words: ["thuốc", "bệnh viện", "bác sĩ", "khám", "nha khoa", "răng", "vitamin", "khám bệnh"] },
-    { id: "entertainment", words: ["phim", "cinema", "du lịch", "vé", "karaoke", "game", "netflix", "spotify", "chơi"] },
-    { id: "salary", words: ["lương", "thưởng", "thu", "nhận tiền", "khách trả", "hoa hồng", "thu nhập"] }
+    { 
+      id: "food", 
+      words: [
+        "phở", "bún", "cơm", "ăn", "uống", "cà phê", "cafe", "trà", "bánh", "pizza", 
+        "lẩu", "nhậu", "tiệc", "ăn sáng", "ăn trưa", "ăn tối", "trà sữa", "highland", 
+        "starbucks", "phúc long", "gà rán", "kfc", "bún chả", "cơm tấm", "bánh mì", 
+        "ăn vặt", "buffet", "trà đá", "kem", "chè", "sushi", "nước ngọt", "lotteria", "toco"
+      ] 
+    },
+    { 
+      id: "market", 
+      words: [
+        "chợ", "siêu thị", "vinmart", "winmart", "coop", "thịt", "rau", "cá", "trứng", 
+        "gia vị", "dầu ăn", "thực phẩm", "đi chợ", "bách hóa xanh", "big c", "go!", 
+        "hải sản", "gạo", "trái cây", "hoa quả", "tạp hóa"
+      ] 
+    },
+    { 
+      id: "education", 
+      words: [
+        "học", "học phí", "trường", "sách", "vở", "tiếng anh", "gia sư", "bơi", "đàn", 
+        "vẽ", "bút", "khóa học", "toeic", "ielts", "kumon", "vus", "apollo", "đồng phục", 
+        "tiền học", "bán trú", "dụng cụ học", "lớp học"
+      ] 
+    },
+    { 
+      id: "baby", 
+      words: [
+        "sữa", "bỉm", "tã", "nan", "meiji", "quần áo bé", "đồ chơi", "tiêm chủng", 
+        "khám nhi", "mầm non", "bobby", "moony", "huggies", "aptamil", "vnvc", 
+        "bình sữa", "ăn dặm", "xe đẩy", "sữa bột", "sữa tươi cho con", "bỉm tã"
+      ] 
+    },
+    { 
+      id: "transport", 
+      words: [
+        "xăng", "đổ xăng", "xe", "rửa xe", "bảo dưỡng", "grab", "taxi", "gửi xe", 
+        "vé xe", "thay nhớt", "be", "xanh sm", "vntaxi", "vá lốp", "thu phí", 
+        "bot", "vé tàu", "vé máy bay", "vietjet", "vietnam airlines", "phí cầu đường"
+      ] 
+    },
+    { 
+      id: "bills", 
+      words: [
+        "điện", "nước", "internet", "wifi", "truyền hình", "chung cư", "phí dịch vụ", 
+        "thuê nhà", "hóa đơn", "tiền nhà", "fpt", "viettel", "vnpt", "tiền mạng", 
+        "tiền rác", "tiền điện", "bảo hiểm", "evn", "tiền nước"
+      ] 
+    },
+    { 
+      id: "shopping", 
+      words: [
+        "áo", "quần", "váy", "giày", "dép", "shopee", "tiki", "lazada", "mỹ phẩm", 
+        "son", "mua sắm", "uniqlo", "zara", "dưỡng da", "kem chống nắng", "nước hoa", 
+        "túi xách", "đồng hồ", "cắt tóc", "nail", "spa", "mua đồ"
+      ] 
+    },
+    { 
+      id: "health", 
+      words: [
+        "thuốc", "bệnh viện", "bác sĩ", "khám", "nha khoa", "răng", "vitamin", 
+        "khám bệnh", "long châu", "an khang", "pharmacity", "panadol", "kháng sinh", 
+        "nhỏ mắt", "khám mắt", "tai mũi họng", "nội soi", "xét nghiệm"
+      ] 
+    },
+    { 
+      id: "entertainment", 
+      words: [
+        "phim", "cinema", "du lịch", "vé", "karaoke", "game", "netflix", "spotify", 
+        "chơi", "cắm trại", "resort", "khách sạn", "hồ bơi", "steam", "xem phim", "vé xem phim"
+      ] 
+    },
+    { 
+      id: "salary", 
+      words: [
+        "lương", "thưởng", "thu", "nhận tiền", "khách trả", "hoa hồng", "thu nhập", 
+        "chuyển khoản nhận", "tiền về", "lãi", "cổ tức", "tiền lương"
+      ] 
+    }
   ];
 
-  // Phân tích số tiền bằng tiếng Việt toàn diện (vd: 2m5 = 2.5tr, 1tr5, 50k, 2 củ rưỡi, 2 lít...)
+  // Bóc tách thời gian tự nhiên (Hôm qua, sáng nay, tối qua, tuần trước...)
+  function parseNaturalDate(text) {
+    const now = new Date();
+    const lower = text.toLowerCase();
+
+    // 1. Hôm qua
+    if (lower.includes("hôm qua") || lower.includes("hom qua")) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString();
+    }
+    // 2. Hôm kia
+    if (lower.includes("hôm kia") || lower.includes("hom kia")) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 2);
+      return d.toISOString();
+    }
+    // 3. Tuần trước
+    if (lower.includes("tuần trước") || lower.includes("tuan truoc")) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      return d.toISOString();
+    }
+    // 4. Tối qua
+    if (lower.includes("tối qua") || lower.includes("toi qua")) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 1);
+      d.setHours(20, 0, 0);
+      return d.toISOString();
+    }
+    // 5. Sáng nay
+    if (lower.includes("sáng nay") || lower.includes("sang nay")) {
+      const d = new Date(now);
+      d.setHours(8, 30, 0);
+      return d.toISOString();
+    }
+    // 6. Trưa nay
+    if (lower.includes("trưa nay") || lower.includes("trua nay")) {
+      const d = new Date(now);
+      d.setHours(12, 15, 0);
+      return d.toISOString();
+    }
+    // 7. Chiều nay
+    if (lower.includes("chiều nay") || lower.includes("chieu nay")) {
+      const d = new Date(now);
+      d.setHours(17, 30, 0);
+      return d.toISOString();
+    }
+
+    return now.toISOString();
+  }
+
+  // Phân tích số tiền bằng tiếng Việt toàn diện (vd: 2m5, 1tr5, 50k, 2 củ rưỡi, 2 lít, 50000...)
   function parseAmount(text) {
     const lower = text.toLowerCase();
 
@@ -84,14 +206,13 @@ const AIAssistant = (() => {
     return null;
   }
 
-  // Phân tích câu nói bằng Offline Engine
-  function parseNaturalTextOffline(promptText) {
-    const text = promptText.toLowerCase().trim();
+  // Bóc tách 1 câu lệnh đơn lẻ
+  function parseSingleNaturalText(segmentText, fullPrompt) {
+    const text = segmentText.toLowerCase().trim();
     const parsedAmt = parseAmount(text);
 
     if (!parsedAmt) {
-      // Câu hỏi truy vấn
-      return { isCommand: false, query: promptText };
+      return null;
     }
 
     const amount = parsedAmt.val;
@@ -150,11 +271,15 @@ const AIAssistant = (() => {
       category = (beneficiary === "Bo") ? "education" : "baby";
     }
 
+    // Nhận diện ngày giờ giao dịch tự nhiên
+    const date = parseNaturalDate(fullPrompt || segmentText);
+
     // Làm sạch ghi chú
-    let note = promptText.replace(new RegExp(parsedAmt.raw, "i"), "").trim();
-    note = note.replace(/\b(hết|mất|khoảng|tầm|vừa|ví gia đình|ví cá nhân|tiền)\b/gi, "").trim();
+    let note = segmentText.replace(new RegExp(parsedAmt.raw, "i"), "").trim();
+    note = note.replace(/\b(hết|mất|khoảng|tầm|vừa|ví gia đình|ví cá nhân|tiền|hôm qua|hôm kia|tối qua|sáng nay|trưa nay|chiều nay)\b/gi, "").trim();
     note = note.replace(/\s+/g, " ");
     if (!note) note = Store.CATEGORIES.find(c => c.id === category)?.name || "Chi tiêu";
+    note = note.charAt(0).toUpperCase() + note.slice(1);
 
     return {
       isCommand: true,
@@ -165,17 +290,58 @@ const AIAssistant = (() => {
         note,
         wallet,
         author,
-        beneficiary
+        beneficiary,
+        date
       }
     };
   }
 
-  // Trả lời câu hỏi tài chính với bảo mật cá nhân hóa
+  // Phân tích câu nói bằng Offline Engine (Hỗ trợ đa giao dịch trong 1 câu)
+  function parseNaturalTextOffline(promptText) {
+    const cleanPrompt = promptText.trim();
+
+    // 1. Kiểm tra xem có phải câu ghép nhiều giao dịch không (ngăn cách bởi "và", "với", "rồi", "sau đó", ",")
+    const segments = cleanPrompt.split(/\s*(?:và|với|rồi|sau đó|\+|,)\s*/i);
+    const validCommands = [];
+
+    if (segments.length > 1) {
+      for (const seg of segments) {
+        const sub = parseSingleNaturalText(seg, cleanPrompt);
+        if (sub && sub.isCommand && sub.data) {
+          validCommands.push(sub.data);
+        }
+      }
+    }
+
+    if (validCommands.length > 1) {
+      return {
+        isCommand: true,
+        isMultiple: true,
+        dataList: validCommands
+      };
+    }
+
+    // 2. Câu lệnh đơn lẻ
+    const single = parseSingleNaturalText(cleanPrompt, cleanPrompt);
+    if (single) {
+      return single;
+    }
+
+    // 3. Câu hỏi truy vấn tài chính
+    return { isCommand: false, query: promptText };
+  }
+
+  // Trả lời câu hỏi tài chính và tư vấn thông minh (Offline Financial Advisor)
   function answerQueryOffline(query) {
     const q = query.toLowerCase();
     const summary = Store.getFinancialSummary();
-    const txs = Store.state.transactions;
-    const todayStr = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
     const myRole = Store.state.settings.activeAuthor;
     const isHusband = myRole === "husband";
     const spouseTitle = isHusband ? "Vợ" : "Chồng";
@@ -189,63 +355,144 @@ const AIAssistant = (() => {
 
     // 1. Hỏi hôm nay
     if (q.includes("hôm nay") || q.includes("hnay")) {
-      const todayTxs = Store.getFilteredTransactions().filter(t => t.date.startsWith(todayStr) && t.type === "expense");
+      const todayTxs = Store.getFilteredTransactions().filter(t => t.date && t.date.startsWith(todayStr) && t.type === "expense");
       const todayTotal = todayTxs.reduce((sum, t) => sum + t.amount, 0);
 
       if (todayTxs.length === 0) {
-        return "Hôm nay bạn chưa có khoản chi tiêu nào ghi nhận!";
+        return "✨ Hôm nay bạn chưa có khoản chi tiêu nào ghi nhận!";
       }
 
-      let res = `Hôm nay đã chi tổng cộng **${Store.formatMoney(todayTotal)}** gồm ${todayTxs.length} khoản:\n`;
+      let res = `📅 Hôm nay đã chi tổng cộng **${Store.formatMoney(todayTotal)}** (${todayTxs.length} giao dịch):\n`;
       todayTxs.forEach(t => {
-        const authorName = t.author === "wife" ? "Vợ" : "Chồng";
+        const authorName = t.author === "wife" ? "👩 Vợ" : "👨 Chồng";
         const walletName = t.wallet === "family" ? "Gia Đình" : "Cá Nhân";
-        res += `• ${t.note || t.category}: **${Store.formatMoney(t.amount)}** (${authorName} • ${walletName})\n`;
+        res += `• **${t.note || t.category}**: ${Store.formatMoney(t.amount)} (${authorName} • ${walletName})\n`;
       });
       return res;
     }
 
-    // 2. Hỏi con cái (Bo / Bông)
+    // 2. Hỏi hôm qua
+    if (q.includes("hôm qua") || q.includes("hom qua")) {
+      const yestTxs = Store.getFilteredTransactions().filter(t => t.date && t.date.startsWith(yesterdayStr) && t.type === "expense");
+      const yestTotal = yestTxs.reduce((sum, t) => sum + t.amount, 0);
+
+      if (yestTxs.length === 0) {
+        return "✨ Hôm qua bạn không có khoản chi tiêu nào!";
+      }
+
+      let res = `📅 Hôm qua đã chi tổng cộng **${Store.formatMoney(yestTotal)}** (${yestTxs.length} giao dịch):\n`;
+      yestTxs.forEach(t => {
+        res += `• **${t.note || t.category}**: ${Store.formatMoney(t.amount)}\n`;
+      });
+      return res;
+    }
+
+    // 3. Hỏi con cái (Bo / Bông)
     if (q.includes("bo")) {
-      return `Tháng này bạn đã chi cho **Bé Bo** tổng cộng **${Store.formatMoney(summary.childBo)}** (gồm học phí, sách vở, học thêm).`;
+      return `👦 Chi phí nuôi **Bé Bo** tháng này: **${Store.formatMoney(summary.childBo)}** (gồm học tập, sách vở, đồ dùng).`;
     }
-    if (q.includes("bông")) {
-      return `Tháng này bạn đã chi cho **Bé Bông** tổng cộng **${Store.formatMoney(summary.childBong)}** (gồm sữa, bỉm, trường mầm non).`;
+    if (q.includes("bông") || q.includes("bong")) {
+      return `👧 Chi phí nuôi **Bé Bông** tháng này: **${Store.formatMoney(summary.childBong)}** (gồm bỉm sữa, mầm non, đồ chơi).`;
     }
 
-    // 3. Hỏi so sánh Chồng vs Vợ (trong Ví Gia Đình)
+    // 4. Hỏi so sánh Chồng vs Vợ (trong Ví Gia Đình)
     if (q.includes("chồng") || q.includes("vợ") || q.includes("ai chi nhiều")) {
-      return `Thống kê đóng góp vào **Ví Gia Đình** tháng này:\n• 👨 Chồng chi: **${Store.formatMoney(summary.husbandTotal)}** (${summary.husbandPercent}%)\n• 👩 Vợ chi: **${Store.formatMoney(summary.wifeTotal)}** (${summary.wifePercent}%)`;
+      if (summary.totalFamily === 0) {
+        return "👨‍👩‍👧 Hai vợ chồng tháng này chưa có khoản chi chung nào trong Ví Gia Đình!";
+      }
+      return `⚖️ **Đóng góp Ví Gia Đình tháng này:**\n• 👨 Chồng: **${Store.formatMoney(summary.husbandTotal)}** (${summary.husbandPercent}%)\n• 👩 Vợ: **${Store.formatMoney(summary.wifeTotal)}** (${summary.wifePercent}%)\n\n${summary.husbandPercent > summary.wifePercent ? "👉 Tháng này Chồng đang đóng góp nhiều hơn." : "👉 Tháng này Vợ đang đóng góp nhiều hơn."}`;
     }
 
-    // 4. Hỏi tổng chi / số dư
-    if (q.includes("tổng") || q.includes("số dư") || q.includes("còn bao nhiêu")) {
-      return `Tình hình tài chính tháng này:\n• Tổng Thu: **+${Store.formatMoney(summary.totalIncome)}**\n• Tổng Chi: **-${Store.formatMoney(summary.totalExpense)}**\n• Số dư ròng: **${Store.formatMoney(summary.netBalance)}**`;
+    // 5. Hỏi danh mục tốn tiền nhất
+    if (q.includes("mục nào") || q.includes("danh mục") || q.includes("tốn tiền") || q.includes("tiêu nhiều nhất")) {
+      const breakdown = Store.getCategoryBreakdown();
+      if (breakdown.data.length === 0) {
+        return "Bạn chưa có khoản chi nào để phân loại danh mục!";
+      }
+      const topCat = breakdown.labels[0];
+      const topAmount = breakdown.data[0];
+      const topPercent = Math.round((topAmount / summary.totalExpense) * 100);
+
+      return `📊 Danh mục tốn tiền nhất hiện tại là **${topCat}** với **${Store.formatMoney(topAmount)}** (chiếm **${topPercent}%** tổng chi tiêu).`;
     }
 
-    return "Tôi hiểu câu hỏi của bạn! Bạn có thể hỏi tôi về chi tiêu hôm nay, số tiền chi cho bé Bo/Bông, hoặc so sánh chi tiêu giữa 2 vợ chồng.";
+    // 6. Cố vấn Tiết Kiệm & Đánh giá Tài chính (Smart Financial Advice)
+    if (q.includes("lời khuyên") || q.includes("tiết kiệm") || q.includes("tư vấn") || q.includes("đánh giá")) {
+      const budget = summary.budget;
+      const expense = summary.totalExpense;
+      const percent = summary.actualPercent;
+
+      let advice = `💡 **Phân tích Cố vấn Tài chính OmniWallet:**\n`;
+      advice += `• Bạn đã chi: **${Store.formatMoney(expense)}** / ${Store.formatMoney(budget)} (${percent}% ngân sách tháng).\n`;
+
+      if (percent > 100) {
+        advice += `🚨 **Cảnh báo:** Bạn đã vượt ngân sách **${percent - 100}%**! Cần tạm dừng các khoản chi mua sắm, giải trí và ăn ngoài ngay lập tức.\n`;
+      } else if (percent > 75) {
+        advice += `⚠️ **Lưu ý:** Ngân sách đã chạm mức **${percent}%**. Hãy tập trung chi cho nhu cầu thiết yếu (đi chợ, con cái, hóa đơn).\n`;
+      } else {
+        advice += `✅ **Tình hình rất tốt:** Bạn đang kiểm soát chi tiêu rất kỷ luật dưới định mức ngân sách.\n`;
+      }
+
+      const breakdown = Store.getCategoryBreakdown();
+      if (breakdown.labels.length > 0) {
+        advice += `\n🎯 **Gợi ý tối ưu:** Cắt giảm bớt ở mục **${breakdown.labels[0]}** để dành thêm ít nhất 10 - 20% thu nhập làm quỹ dự phòng khẩn cấp!`;
+      }
+      return advice;
+    }
+
+    // 7. Dự báo ngân sách & tốc độ tiêu tiền (Burn Rate)
+    if (q.includes("dự báo") || q.includes("ngân sách") || q.includes("thâm hụt") || q.includes("cháy túi")) {
+      const dayOfMonth = now.getDate();
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const dailyBurn = summary.totalExpense / Math.max(dayOfMonth, 1);
+      const projectedExpense = dailyBurn * daysInMonth;
+
+      let report = `📈 **Dự báo Chi tiêu Hết Tháng:**\n`;
+      report += `• Tốc độ chi trung bình: **${Store.formatMoney(dailyBurn)} / ngày**.\n`;
+      report += `• Dự kiến cả tháng sẽ tiêu: **${Store.formatMoney(projectedExpense)}** (Ngân sách: ${Store.formatMoney(summary.budget)}).\n`;
+
+      if (projectedExpense > summary.budget) {
+        report += `🔴 **Nguy cơ:** Với đà này, bạn sẽ vượt ngân sách khoảng **${Store.formatMoney(projectedExpense - summary.budget)}** vào cuối tháng!`;
+      } else {
+        report += `🟢 **Khả quan:** Dự kiến bạn sẽ dư **${Store.formatMoney(summary.budget - projectedExpense)}** để bỏ ống heo tiết kiệm!`;
+      }
+      return report;
+    }
+
+    // 8. Hỏi tổng chi / số dư / tiết kiệm được bao nhiêu
+    if (q.includes("tổng") || q.includes("số dư") || q.includes("còn bao nhiêu") || q.includes("tiết kiệm")) {
+      return `💰 **Tình hình tài chính tháng này:**\n• Tổng Thu: **+${Store.formatMoney(summary.totalIncome)}**\n• Tổng Chi: **-${Store.formatMoney(summary.totalExpense)}**\n• Số dư tích lũy: **${Store.formatMoney(summary.netBalance)}**`;
+    }
+
+    return "🤖 Tôi hiểu câu hỏi của bạn! Bạn có thể hỏi tôi:\n• *'Hôm nay tiêu bao nhiêu?'*\n• *'Mục nào tốn tiền nhất?'*\n• *'Dự báo ngân sách tháng này'* hoặc *'Cho tôi lời khuyên tiết kiệm'*";
   }
 
-  // Gọi Gemini API nếu người dùng có cấu hình Key
+  // Gọi Gemini API (Google AI) khi có API Key
   async function callGemini(promptText) {
     const key = (typeof localStorage !== "undefined") ? localStorage.getItem(GEMINI_KEY_STORAGE) : null;
     if (!key) return null;
 
     try {
       const summary = Store.getFinancialSummary();
-      const recentTxs = Store.getFilteredTransactions().slice(0, 15);
+      const recentTxs = Store.getFilteredTransactions().slice(0, 20);
+      const catBreakdown = Store.getCategoryBreakdown();
 
-      const systemPrompt = `Bạn là Trợ lý Tài Chính Cá Nhân và Gia Đình thông minh trong app OmniWallet.
-Quy tắc bảo mật: Không bao giờ tiết lộ ví cá nhân của vợ cho chồng hoặc ngược lại.
-Dữ liệu hiện tại:
-- Tổng thu tháng: ${summary.totalIncome} VNĐ
-- Tổng chi tháng: ${summary.totalExpense} VNĐ
-- Chi cho Bé Bo: ${summary.childBo} VNĐ
-- Chi cho Bé Bông: ${summary.childBong} VNĐ
-- Chồng chi gia đình: ${summary.husbandTotal} VNĐ, Vợ chi gia đình: ${summary.wifeTotal} VNĐ
-- Giao dịch gần nhất: ${JSON.stringify(recentTxs)}
+      const systemPrompt = `Bạn là Trợ lý Cố Vấn Tài Chính Gia Đình & Cá Nhân OmniWallet thông minh, am hiểu văn hóa và tài chính gia đình Việt Nam.
+Nguyên tắc:
+1. Trả lời bằng tiếng Việt tự nhiên, ấm áp, ngắn gọn, súc tích, mang tính xây dựng cho hạnh phúc gia đình.
+2. Bảo mật tuyệt đối: Không bao giờ tiết lộ ví cá nhân của vợ cho chồng hoặc ngược lại.
+3. Dữ liệu tài chính thực tế hiện tại của gia đình:
+- Tổng thu nhập tháng: ${summary.totalIncome.toLocaleString("vi-VN")} ₫
+- Tổng chi tiêu tháng: ${summary.totalExpense.toLocaleString("vi-VN")} ₫
+- Số dư ròng: ${summary.netBalance.toLocaleString("vi-VN")} ₫
+- Ngân sách tháng: ${summary.budget.toLocaleString("vi-VN")} ₫ (đã dùng ${summary.actualPercent}%)
+- Chi cho Bé Bo: ${summary.childBo.toLocaleString("vi-VN")} ₫
+- Chi cho Bé Bông: ${summary.childBong.toLocaleString("vi-VN")} ₫
+- Đóng góp vào gia đình: Chồng ${summary.husbandTotal.toLocaleString("vi-VN")} ₫ (${summary.husbandPercent}%), Vợ ${summary.wifeTotal.toLocaleString("vi-VN")} ₫ (${summary.wifePercent}%)
+- Top danh mục chi nhiều nhất: ${catBreakdown.labels.slice(0, 5).join(", ")}
+- Các giao dịch gần đây: ${JSON.stringify(recentTxs.map(t => ({ note: t.note, amount: t.amount, cat: t.category, date: t.date, wallet: t.wallet })))}
 
-Hãy trả lời ngắn gọn, tình cảm, hài hước và chuẩn xác bằng tiếng Việt.`;
+Dựa vào các số liệu trên, hãy phân tích, nhận xét và đưa ra câu trả lời sắc sảo, thiết thực nhất cho câu hỏi của người dùng.`;
 
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
         method: "POST",
@@ -267,6 +514,7 @@ Hãy trả lời ngắn gọn, tình cảm, hài hước và chuẩn xác bằng
 
   return {
     parseAmount,
+    parseNaturalDate,
     parseNaturalTextOffline,
     answerQueryOffline,
     callGemini
