@@ -55,6 +55,18 @@ document.addEventListener("DOMContentLoaded", () => {
   let categoryChart = null;
 
   // 1. Khởi tạo giao diện
+  const initialWallet = Store.state.settings.activeWallet || "personal";
+  walletTabBtns.forEach(b => {
+    if (b.getAttribute("data-wallet") === initialWallet) {
+      b.classList.add("active");
+    } else {
+      b.classList.remove("active");
+    }
+  });
+  if (initialWallet === "personal") currentWalletLabel.textContent = "Số Dư Ví Cá Nhân";
+  else if (initialWallet === "family") currentWalletLabel.textContent = "Số Dư Quỹ Gia Đình";
+  else currentWalletLabel.textContent = "Số Dư Toàn Bộ (Tổng Hợp)";
+
   renderAll();
   populateCategoryGrid();
   updateAuthorUI();
@@ -229,34 +241,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (categoryChart) {
       categoryChart.destroy();
+      categoryChart = null;
     }
 
     if (catData.data.length === 0) {
       return;
     }
 
-    categoryChart = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: catData.labels,
-        datasets: [{
-          data: catData.data,
-          backgroundColor: catData.colors,
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: "right",
-            labels: { color: "#94a3b8", font: { family: "Plus Jakarta Sans", size: 11 } }
-          }
+    if (typeof Chart === "undefined") {
+      return;
+    }
+
+    try {
+      categoryChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: catData.labels,
+          datasets: [{
+            data: catData.data,
+            backgroundColor: catData.colors,
+            borderWidth: 0
+          }]
         },
-        cutout: "68%"
-      }
-    });
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "right",
+              labels: { color: "#94a3b8", font: { family: "Plus Jakarta Sans", size: 11 } }
+            }
+          },
+          cutout: "68%"
+        }
+      });
+    } catch (e) {
+      console.warn("Chart creation error:", e);
+    }
   }
 
   // Toggle Analytics View
@@ -317,6 +338,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Mở & Đóng Add Modal
   btnOpenAddExpense.addEventListener("click", () => {
+    const curWallet = Store.state.settings.activeWallet === "all" ? "family" : Store.state.settings.activeWallet;
+    document.querySelectorAll("#sheet-wallet-segmented .mini-btn").forEach(b => {
+      b.classList.toggle("active", b.getAttribute("data-val") === curWallet);
+    });
+
+    const sheetBeneficiaryGroup = document.getElementById("sheet-beneficiary-group");
+    const sheetAuthorGroup = document.querySelector("#sheet-author-segmented")?.closest(".field-col");
+
+    if (curWallet === "personal") {
+      if (sheetBeneficiaryGroup) sheetBeneficiaryGroup.style.display = "none";
+      if (sheetAuthorGroup) {
+        sheetAuthorGroup.style.opacity = "0.4";
+        sheetAuthorGroup.style.pointerEvents = "none";
+      }
+    } else {
+      if (sheetBeneficiaryGroup) sheetBeneficiaryGroup.style.display = "flex";
+      if (sheetAuthorGroup) {
+        sheetAuthorGroup.style.opacity = "1";
+        sheetAuthorGroup.style.pointerEvents = "auto";
+      }
+    }
+
     addModalOverlay.classList.add("active");
     document.getElementById("input-amount").focus();
   });
@@ -344,7 +387,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Wallet & Author mini segmented
   setupMiniSegmented("sheet-wallet-segmented");
-  setupMiniSegmented("sheet-author-segmented");\n
+  setupMiniSegmented("sheet-author-segmented");
+
   // Điều chỉnh form thêm chi tiêu theo ví được chọn
   const sheetWalletBtns = document.querySelectorAll("#sheet-wallet-segmented .mini-btn");
   const sheetBeneficiaryGroup = document.getElementById("sheet-beneficiary-group");

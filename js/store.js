@@ -30,6 +30,7 @@ const Store = (() => {
     settings: {
       activeAuthor: "husband", // 'husband' (Chồng) | 'wife' (Vợ) cố định cho thiết bị này
       activeWallet: "personal", // 'personal' | 'family' | 'all'
+      authorFilter: "all",
       childFilter: "all",
       privacyMode: false,
       monthlyBudget: 15000000,
@@ -232,7 +233,13 @@ const Store = (() => {
       }
 
       // 3. Lọc theo con cái (nếu đang ở ví gia đình hoặc tổng hợp)
-      if (childFilter !== "all" && tx.beneficiary !== childFilter) {
+      if (childFilter && childFilter !== "all" && tx.beneficiary !== childFilter) {
+        return false;
+      }
+
+      // 4. Lọc theo người chi (filter chip Chồng / Vợ)
+      const { authorFilter } = state.settings;
+      if (authorFilter && authorFilter !== "all" && tx.author !== authorFilter) {
         return false;
       }
 
