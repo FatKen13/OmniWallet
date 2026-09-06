@@ -599,13 +599,18 @@ body {
   justify-content: space-between;
   border: 1px solid var(--border-glass);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tx-card:hover {
+  border-color: var(--border-glass-strong);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
 }
 
 .tx-left {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  overflow: hidden;
 }
 
 .tx-cat-icon {
@@ -616,18 +621,24 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
 .tx-details {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  overflow: hidden;
 }
 
 .tx-note {
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
 }
 
 .tx-meta-badges {
@@ -648,12 +659,20 @@ body {
 .tx-badge.wife { background: rgba(236, 72, 153, 0.15); color: #f472b6; }
 .tx-badge.child { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
 .tx-badge.family { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; }
+.tx-badge.time {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 
 .tx-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 0.2rem;
+  flex-shrink: 0;
 }
 
 .tx-amount {
@@ -671,6 +690,7 @@ body {
   cursor: pointer;
   font-size: 0.8rem;
   padding: 0.2rem;
+  transition: color 0.15s ease;
 }
 .tx-del-btn:hover { color: var(--expense-color); }
 
@@ -678,11 +698,38 @@ body {
   text-align: center;
   padding: 3rem 1rem;
   color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
 }
 .empty-state i {
   font-size: 2.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.25rem;
   opacity: 0.4;
+}
+
+.empty-add-btn {
+  margin-top: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-glass-strong);
+  color: var(--brand-primary);
+  border-radius: var(--radius-full);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.empty-add-btn:hover {
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-color: var(--brand-primary);
+  box-shadow: 0 4px 12px var(--glow-brand);
 }
 
 /* ==================== 8. BOTTOM SHEET MODALS ==================== */
@@ -828,6 +875,22 @@ body {
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+.num-pill:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-glass-strong);
+}
+.num-pill.clear-pill {
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.num-pill.clear-pill:hover {
+  color: var(--expense-color);
+  border-color: rgba(244, 63, 94, 0.4);
 }
 
 .sheet-field-row {

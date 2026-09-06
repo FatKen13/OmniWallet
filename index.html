@@ -30,7 +30,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.1">
+  <link rel="stylesheet" href="style.css?v=1.2">
 </head>
 <body>
 
@@ -254,15 +254,16 @@
       <!-- Big Amount Input -->
       <div class="amount-display-box">
         <span class="currency-symbol">₫</span>
-        <input type="text" inputmode="numeric" id="input-amount" class="amount-input" placeholder="0" autofocus>
+        <input type="text" inputmode="numeric" id="input-amount" class="amount-input" placeholder="0" autofocus autocomplete="off">
       </div>
 
       <!-- Quick Add Number Pills -->
       <div class="quick-num-pills">
-        <button class="num-pill" data-val="10000">+10k</button>
-        <button class="num-pill" data-val="50000">+50k</button>
-        <button class="num-pill" data-val="100000">+100k</button>
-        <button class="num-pill" data-val="500000">+500k</button>
+        <button type="button" class="num-pill" data-val="10000">+10k</button>
+        <button type="button" class="num-pill" data-val="50000">+50k</button>
+        <button type="button" class="num-pill" data-val="100000">+100k</button>
+        <button type="button" class="num-pill" data-val="500000">+500k</button>
+        <button type="button" class="num-pill clear-pill" id="btn-clear-amount" title="Đặt lại số tiền"><i class="fa-solid fa-rotate-left"></i> Đặt lại</button>
       </div>
 
       <!-- Wallet & Author Switchers -->
@@ -426,10 +427,10 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JavaScript Modules -->
-  <script src="js/store.js?v=1.1"></script>
-  <script src="js/ai.js?v=1.1"></script>
-  <script src="js/supabase.js?v=1.1"></script>
-  <script src="js/app.js?v=1.1"></script>
+  <script src="js/store.js?v=1.2"></script>
+  <script src="js/ai.js?v=1.2"></script>
+  <script src="js/supabase.js?v=1.2"></script>
+  <script src="js/app.js?v=1.2"></script>
 
 </body>
 </html>

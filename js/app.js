@@ -67,6 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
   else if (initialWallet === "family") currentWalletLabel.textContent = "Số Dư Quỹ Gia Đình";
   else currentWalletLabel.textContent = "Số Dư Toàn Bộ (Tổng Hợp)";
 
+  updateFilterBarVisibility();
   renderAll();
   populateCategoryGrid();
   updateAuthorUI();
@@ -85,9 +86,25 @@ document.addEventListener("DOMContentLoaded", () => {
       else if (walletType === "family") currentWalletLabel.textContent = "Số Dư Quỹ Gia Đình";
       else currentWalletLabel.textContent = "Số Dư Toàn Bộ (Tổng Hợp)";
 
+      updateFilterBarVisibility();
       renderAll();
     });
   });
+
+  function updateFilterBarVisibility() {
+    const currentWallet = Store.state.settings.activeWallet;
+    const filterBar = document.getElementById("filter-bar");
+    const childGroup = document.getElementById("child-filter-chips");
+    const authorGroup = document.getElementById("author-filter-chips");
+
+    if (currentWallet === "personal") {
+      if (filterBar) filterBar.style.display = "none";
+    } else {
+      if (filterBar) filterBar.style.display = "flex";
+      if (authorGroup) authorGroup.style.display = "flex";
+      if (childGroup) childGroup.style.display = "flex";
+    }
+  }
 
   // 3. Đổi Người Chi (Chồng <-> Vợ)
   btnToggleAuthor.addEventListener("click", () => {
@@ -95,6 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
     Store.state.settings.activeAuthor = cur === "husband" ? "wife" : "husband";
     Store.saveSettings();
     updateAuthorUI();
+    renderAll();
     showToast(`Đã chuyển sang: ${Store.state.settings.activeAuthor === "husband" ? "👨 Chồng" : "👩 Vợ"}`);
   });
 
@@ -144,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
       displayBalance.textContent = Store.formatMoney(summary.netBalance);
       displayIncome.textContent = "+" + Store.formatMoney(summary.totalIncome);
       displayExpense.textContent = "-" + Store.formatMoney(summary.totalExpense);
-      budgetText.textContent = `${summary.budgetPercent}% (${Store.formatMoney(summary.totalExpense)} / ${Store.formatMoney(summary.budget)})`;
+      budgetText.textContent = `${summary.actualPercent || summary.budgetPercent}% (${Store.formatMoney(summary.totalExpense)} / ${Store.formatMoney(summary.budget)})`;
     }
 
     budgetBar.style.width = summary.budgetPercent + "%";
@@ -153,6 +171,34 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       budgetBar.style.background = "linear-gradient(90deg, #10b981, #f59e0b)";
     }
+  }
+
+  function formatTxDateGroup(dateStr) {
+    if (!dateStr) return "Giao dịch trước đây";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "Giao dịch";
+
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    const isYesterday = d.toDateString() === yesterday.toDateString();
+
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+
+    if (isToday) return `Hôm nay • ${day}/${month}`;
+    if (isYesterday) return `Hôm qua • ${day}/${month}`;
+    return `Ngày ${day}/${month}/${d.getFullYear()}`;
+  }
+
+  function formatTxTime(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    const hours = String(d.getHours()).padStart(2, "0");
+    const mins = String(d.getMinutes()).padStart(2, "0");
+    return `${hours}:${mins}`;
   }
 
   function renderTransactions() {
@@ -165,16 +211,32 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="empty-state">
           <i class="fa-solid fa-receipt"></i>
           <p>Chưa có khoản chi tiêu nào phù hợp.</p>
+          <button class="empty-add-btn" id="btn-empty-add"><i class="fa-solid fa-plus"></i> Thêm giao dịch mới</button>
         </div>
       `;
+      document.getElementById("btn-empty-add")?.addEventListener("click", () => {
+        btnOpenAddExpense.click();
+      });
       return;
     }
 
+    let lastDateGroup = null;
+
     txs.forEach(t => {
+      const dateGroup = formatTxDateGroup(t.date);
+      if (dateGroup !== lastDateGroup) {
+        const divider = document.createElement("div");
+        divider.className = "tx-date-divider";
+        divider.textContent = dateGroup;
+        txList.appendChild(divider);
+        lastDateGroup = dateGroup;
+      }
+
       const cat = Store.CATEGORIES.find(c => c.id === t.category) || { name: "Khác", icon: "fa-circle-dot", color: "#64748b" };
       const authorClass = t.author === "wife" ? "wife" : "husband";
       const authorText = t.author === "wife" ? "👩 Vợ" : "👨 Chồng";
       const isExpense = t.type === "expense";
+      const timeText = formatTxTime(t.date);
 
       const card = document.createElement("div");
       card.className = "tx-card";
@@ -184,8 +246,9 @@ document.addEventListener("DOMContentLoaded", () => {
             <i class="fa-solid ${cat.icon}"></i>
           </div>
           <div class="tx-details">
-            <span class="tx-note">${t.note || cat.name}</span>
+            <span class="tx-note" title="${t.note || cat.name}">${t.note || cat.name}</span>
             <div class="tx-meta-badges">
+              ${timeText ? `<span class="tx-badge time"><i class="fa-regular fa-clock"></i> ${timeText}</span>` : ""}
               <span class="tx-badge ${authorClass}">${authorText}</span>
               <span class="tx-badge family">${t.wallet === "family" ? "Gia Đình" : "Cá Nhân"}</span>
               ${t.beneficiary !== "none" ? `<span class="tx-badge child">Bé ${t.beneficiary}</span>` : ""}
@@ -210,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (confirm("Bạn có chắc muốn xóa khoản chi này?")) {
           Store.deleteTransaction(id);
           renderAll();
-          showToast("Đã xóa giao dịch");
+          showToast("Đã xóa giao dịch", "fa-trash");
         }
       });
     });
@@ -220,16 +283,35 @@ document.addEventListener("DOMContentLoaded", () => {
     const summary = Store.getFinancialSummary();
 
     // Cập nhật thẻ con cái
-    document.getElementById("child-amount-bo").textContent = Store.formatMoney(summary.childBo);
-    document.getElementById("child-amount-bong").textContent = Store.formatMoney(summary.childBong);
+    const boEl = document.getElementById("child-amount-bo");
+    const bongEl = document.getElementById("child-amount-bong");
+    if (boEl) boEl.textContent = Store.formatMoney(summary.childBo);
+    if (bongEl) bongEl.textContent = Store.formatMoney(summary.childBong);
 
     // Cập nhật thanh so sánh Chồng vs Vợ
     const barH = document.getElementById("spouse-bar-husband");
     const barW = document.getElementById("spouse-bar-wife");
-    barH.style.width = summary.husbandPercent + "%";
-    barH.textContent = summary.husbandPercent + "%";
-    barW.style.width = summary.wifePercent + "%";
-    barW.textContent = summary.wifePercent + "%";
+    if (barH && barW) {
+      if (summary.totalFamily === 0) {
+        barH.style.width = "100%";
+        barH.textContent = "Chưa có chi tiêu chung";
+        barH.style.background = "var(--border-glass-strong)";
+        barH.style.color = "var(--text-muted)";
+        barW.style.display = "none";
+      } else {
+        barH.style.display = "flex";
+        barH.style.background = "var(--husband-color)";
+        barH.style.color = "#fff";
+        barH.style.width = Math.max(summary.husbandPercent, 10) + "%";
+        barH.textContent = summary.husbandPercent >= 15 ? summary.husbandPercent + "%" : "";
+
+        barW.style.display = summary.wifePercent > 0 ? "flex" : "none";
+        barW.style.background = "var(--wife-color)";
+        barW.style.color = "#fff";
+        barW.style.width = Math.max(summary.wifePercent, 10) + "%";
+        barW.textContent = summary.wifePercent >= 15 ? summary.wifePercent + "%" : "";
+      }
+    }
 
     document.getElementById("spouse-val-husband").textContent = Store.formatMoney(summary.husbandTotal);
     document.getElementById("spouse-val-wife").textContent = Store.formatMoney(summary.wifeTotal);
@@ -368,13 +450,59 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === addModalOverlay) addModalOverlay.classList.remove("active");
   });
 
-  // Quick Amount Pills (+10k, +50k...)
+  // Quick Amount Pills (+10k, +50k...) & Clear
   document.querySelectorAll(".num-pill").forEach(pill => {
     pill.addEventListener("click", () => {
       const addVal = parseInt(pill.getAttribute("data-val"));
+      if (isNaN(addVal)) return;
       const curVal = parseInt(document.getElementById("input-amount").value.replace(/[^0-9]/g, "") || "0");
       document.getElementById("input-amount").value = (curVal + addVal).toLocaleString("vi-VN");
     });
+  });
+
+  const inputAmount = document.getElementById("input-amount");
+  const inputNote = document.getElementById("input-note");
+  const btnClearAmount = document.getElementById("btn-clear-amount");
+
+  // Format số tiền tức thì khi người dùng gõ
+  inputAmount.addEventListener("input", () => {
+    const clean = inputAmount.value.replace(/[^0-9]/g, "");
+    if (!clean) {
+      inputAmount.value = "";
+      return;
+    }
+    inputAmount.value = parseInt(clean, 10).toLocaleString("vi-VN");
+  });
+
+  if (btnClearAmount) {
+    btnClearAmount.addEventListener("click", () => {
+      inputAmount.value = "";
+      inputAmount.focus();
+    });
+  }
+
+  // Điều hướng bàn phím tiện thao tác: Enter từ số tiền nhảy sang ghi chú, Enter từ ghi chú lưu ngay
+  inputAmount.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      inputNote.focus();
+    }
+  });
+
+  inputNote.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      document.getElementById("btn-save-tx").click();
+    }
+  });
+
+  // Phím ESC đóng mọi modal
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      addModalOverlay.classList.remove("active");
+      aiModalOverlay.classList.remove("active");
+      syncModalOverlay.classList.remove("active");
+    }
   });
 
   // Child select in sheet
@@ -481,7 +609,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ==================== AI ASSISTANT CHAT ====================
-  btnOpenAI.addEventListener("click", () => aiModalOverlay.classList.add("active"));
+  btnOpenAI.addEventListener("click", () => {
+    aiModalOverlay.classList.add("active");
+    setTimeout(() => aiTextInput.focus(), 150);
+  });
   btnCloseAIModal.addEventListener("click", () => aiModalOverlay.classList.remove("active"));
   aiModalOverlay.addEventListener("click", (e) => {
     if (e.target === aiModalOverlay) aiModalOverlay.classList.remove("active");
@@ -664,6 +795,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const isDark = html.getAttribute("data-theme") === "dark";
     html.setAttribute("data-theme", isDark ? "light" : "dark");
     themeIcon.className = isDark ? "fa-solid fa-sun" : "fa-solid fa-moon";
+    const metaThemeColor = document.getElementById("meta-theme-color");
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute("content", isDark ? "#f1f5f9" : "#070a12");
+    }
     if (categoryChart) renderAnalytics();
   });
 

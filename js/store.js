@@ -245,6 +245,9 @@ const Store = (() => {
 
       return true;
     });
+
+    // Sắp xếp thời gian mới nhất lên đầu (Chính xác theo thời gian giao dịch)
+    return filtered.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   }
 
   // Tính toán tóm tắt tài chính hiển thị
@@ -278,11 +281,12 @@ const Store = (() => {
     });
 
     const totalFamily = husbandFamilyTotal + wifeFamilyTotal;
-    const husbandPercent = totalFamily > 0 ? Math.round((husbandFamilyTotal / totalFamily) * 100) : 50;
-    const wifePercent = totalFamily > 0 ? (100 - husbandPercent) : 50;
+    const husbandPercent = totalFamily > 0 ? Math.round((husbandFamilyTotal / totalFamily) * 100) : 0;
+    const wifePercent = totalFamily > 0 ? (100 - husbandPercent) : 0;
 
     const budget = state.settings.monthlyBudget || 15000000;
     const budgetPercent = Math.min(100, Math.round((totalExpense / budget) * 100));
+    const actualPercent = budget > 0 ? Math.round((totalExpense / budget) * 100) : 0;
 
     return {
       netBalance,
@@ -290,12 +294,14 @@ const Store = (() => {
       totalExpense,
       budget,
       budgetPercent,
+      actualPercent,
       childBo,
       childBong,
       husbandTotal: husbandFamilyTotal,
       wifeTotal: wifeFamilyTotal,
       husbandPercent,
-      wifePercent
+      wifePercent,
+      totalFamily
     };
   }
 
