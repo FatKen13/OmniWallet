@@ -1,7 +1,7 @@
 /**
  * OmniWallet AI Assistant Engine
  * - Hỗ trợ cả 2 chế độ:
- *   1. Offline NLP Engine (Không cần API key, bóc tách câu tự nhiên siêu nhạy)
+ *   1. Offline NLP Engine (Bóc tách câu tự nhiên siêu nhạy, hiểu 2m5, 1tr5, củ rưỡi, lít rưỡi, xị, lốp...)
  *   2. Google Gemini API (Khi có Key: suy luận tài chính chuyên sâu, cố vấn chi tiêu)
  */
 
@@ -10,48 +10,75 @@ const AIAssistant = (() => {
 
   // Từ khóa nhận diện danh mục
   const CATEGORY_RULES = [
-    { id: "food", words: ["phở", "bún", "cơm", "ăn", "uống", "cà phê", "cafe", "trà", "bánh", "pizza", "lẩu", "nhậu", "tiệc"] },
-    { id: "market", words: ["chợ", "siêu thị", "vinmart", "coop", "thịt", "rau", "cá", "trứng", "gia vị", "dầu ăn"] },
-    { id: "education", words: ["học", "học phí", "trường", "sách", "vở", "tiếng anh", "gia sư", "bơi", "đàn", "vẽ", "bút"] },
-    { id: "baby", words: ["sữa", "bỉm", "tã", "nan", "meiji", "quần áo bé", "đồ chơi", "tiêm chủng", "khám nhi"] },
-    { id: "transport", words: ["xăng", "đổ xăng", "xe", "rửa xe", "bảo dưỡng", "grab", "taxi", "gửi xe", "vé xe"] },
-    { id: "bills", words: ["điện", "nước", "internet", "wifi", "truyền hình", "chung cư", "phí dịch vụ", "thuê nhà"] },
-    { id: "shopping", words: ["áo", "quần", "váy", "giày", "dép", "shopee", "tiki", "lazada", "mỹ phẩm", "son"] },
-    { id: "health", words: ["thuốc", "bệnh viện", "bác sĩ", "khám", "nha khoa", "răng", "vitamin"] },
-    { id: "entertainment", words: ["phim", "cinema", "du lịch", "vé", "karaoke", "game", "netflix", "spotify"] },
-    { id: "salary", words: ["lương", "thưởng", "thu", "nhận tiền", "khách trả", "hoa hồng"] }
+    { id: "food", words: ["phở", "bún", "cơm", "ăn", "uống", "cà phê", "cafe", "trà", "bánh", "pizza", "lẩu", "nhậu", "tiệc", "ăn sáng", "ăn trưa", "ăn tối"] },
+    { id: "market", words: ["chợ", "siêu thị", "vinmart", "coop", "thịt", "rau", "cá", "trứng", "gia vị", "dầu ăn", "thực phẩm", "đi chợ"] },
+    { id: "education", words: ["học", "học phí", "trường", "sách", "vở", "tiếng anh", "gia sư", "bơi", "đàn", "vẽ", "bút", "khóa học"] },
+    { id: "baby", words: ["sữa", "bỉm", "tã", "nan", "meiji", "quần áo bé", "đồ chơi", "tiêm chủng", "khám nhi", "mầm non"] },
+    { id: "transport", words: ["xăng", "đổ xăng", "xe", "rửa xe", "bảo dưỡng", "grab", "taxi", "gửi xe", "vé xe", "thay nhớt"] },
+    { id: "bills", words: ["điện", "nước", "internet", "wifi", "truyền hình", "chung cư", "phí dịch vụ", "thuê nhà", "hóa đơn"] },
+    { id: "shopping", words: ["áo", "quần", "váy", "giày", "dép", "shopee", "tiki", "lazada", "mỹ phẩm", "son", "mua sắm"] },
+    { id: "health", words: ["thuốc", "bệnh viện", "bác sĩ", "khám", "nha khoa", "răng", "vitamin", "khám bệnh"] },
+    { id: "entertainment", words: ["phim", "cinema", "du lịch", "vé", "karaoke", "game", "netflix", "spotify", "chơi"] },
+    { id: "salary", words: ["lương", "thưởng", "thu", "nhận tiền", "khách trả", "hoa hồng", "thu nhập"] }
   ];
 
-  // Phân tích số tiền bằng tiếng Việt (vd: 50k, 1.2tr, 3 triệu, 250 nghìn, lít rưỡi, 2 củ)
+  // Phân tích số tiền bằng tiếng Việt toàn diện (vd: 2m5 = 2.5tr, 1tr5, 50k, 2 củ rưỡi, 2 lít...)
   function parseAmount(text) {
     const lower = text.toLowerCase();
 
-    // 1. Dạng: 1.2tr / 1,5 triệu / 2 củ / 3 tr
-    const trMatch = lower.match(/([0-9]+[.,]?[0-9]*)\s*(tr|triệu|củ|m)/i);
+    // 1. Dạng kẹp số triệu: 2m5, 1tr5, 3củ2, 2 chai 5, 2triệu5
+    const compoundMillion = lower.match(/([0-9]+)\s*(m|tr|triệu|củ|chai)\s*([0-9]+)/i);
+    if (compoundMillion) {
+      const val = parseFloat(compoundMillion[1] + "." + compoundMillion[3]) * 1000000;
+      return { val, raw: compoundMillion[0] };
+    }
+
+    // 2. Dạng 'rưỡi': 2 củ rưỡi, 1tr rưỡi, 2 triệu rưỡi, 2m rưỡi, 2 chai rưỡi
+    const ruoiMillion = lower.match(/([0-9]+)\s*(m|tr|triệu|củ|chai)\s*(rưỡi|rưởi)/i);
+    if (ruoiMillion) {
+      const val = (parseFloat(ruoiMillion[1]) + 0.5) * 1000000;
+      return { val, raw: ruoiMillion[0] };
+    }
+
+    // 3. Dạng thập phân / đơn lẻ triệu: 2.5m, 2,5tr, 2 triệu, 2 củ, 2m, 2 chai
+    const trMatch = lower.match(/([0-9]+(?:[.,][0-9]+)?)\s*(m|tr|triệu|củ|chai)(?![a-z0-9])/i);
     if (trMatch) {
-      const val = parseFloat(trMatch[1].replace(",", "."));
-      if (!isNaN(val)) return val * 1000000;
+      const cleanNum = trMatch[1].replace(",", ".");
+      const val = parseFloat(cleanNum) * 1000000;
+      return { val, raw: trMatch[0] };
     }
 
-    // 2. Dạng: 50k / 200 nghìn / 500 ngàn / 50 k
-    const kMatch = lower.match(/([0-9]+[.,]?[0-9]*)\s*(k|nghìn|ngàn)/i);
+    // 4. Dạng nghìn kẹp: 1k5, 50k5
+    const compoundThousand = lower.match(/([0-9]+)\s*k\s*([0-9]+)/i);
+    if (compoundThousand) {
+      const val = parseFloat(compoundThousand[1] + "." + compoundThousand[2]) * 1000;
+      return { val, raw: compoundThousand[0] };
+    }
+
+    // 5. Dạng nghìn thông thường: 50k, 200 nghìn, 500 ngàn
+    const kMatch = lower.match(/([0-9]+(?:[.,][0-9]+)?)\s*(k|nghìn|ngàn)(?![a-z0-9])/i);
     if (kMatch) {
-      const val = parseFloat(kMatch[1].replace(",", "."));
-      if (!isNaN(val)) return val * 1000;
+      const cleanNum = kMatch[1].replace(",", ".");
+      const val = parseFloat(cleanNum) * 1000;
+      return { val, raw: kMatch[0] };
     }
 
-    // 3. Tiếng lóng Việt: "lít rưỡi" (150k), "2 lít" (200k), "nửa củ" (500k)
-    if (lower.includes("lít rưỡi")) return 150000;
-    if (lower.includes("nửa củ") || lower.includes("nửa triệu")) return 500000;
-    const litMatch = lower.match(/([0-9]+)\s*lít/);
-    if (litMatch) return parseInt(litMatch[1]) * 100000;
+    // 6. Tiếng lóng: lít, xị, lốp
+    if (lower.includes("lít rưỡi") || lower.includes("lít rưởi")) return { val: 150000, raw: "lít rưỡi" };
+    if (lower.includes("nửa củ") || lower.includes("nửa triệu")) return { val: 500000, raw: "nửa củ" };
+    if (lower.includes("nửa lít") || lower.includes("nửa xị")) return { val: 50000, raw: "nửa lít" };
 
-    // 4. Số thuần túy (vd: 50000, 200.000)
+    const litMatch = lower.match(/([0-9]+)\s*(lít|xị|lốp)/i);
+    if (litMatch) {
+      return { val: parseInt(litMatch[1]) * 100000, raw: litMatch[0] };
+    }
+
+    // 7. Số thuần túy (vd: 50000, 200.000)
     const numMatch = lower.match(/([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{4,})/);
     if (numMatch) {
       const clean = numMatch[1].replace(/[.,]/g, "");
       const val = parseInt(clean);
-      if (!isNaN(val) && val > 1000) return val;
+      if (!isNaN(val) && val > 1000) return { val, raw: numMatch[0] };
     }
 
     return null;
@@ -60,15 +87,18 @@ const AIAssistant = (() => {
   // Phân tích câu nói bằng Offline Engine
   function parseNaturalTextOffline(promptText) {
     const text = promptText.toLowerCase().trim();
-    const amount = parseAmount(text);
+    const parsedAmt = parseAmount(text);
 
-    if (!amount) {
+    if (!parsedAmt) {
       // Câu hỏi truy vấn
       return { isCommand: false, query: promptText };
     }
 
+    const amount = parsedAmt.val;
+
     // Nhận diện người chi (Chồng hay Vợ)
-    let author = Store.state.settings.activeAuthor || "husband";
+    const myRole = Store.state.settings.activeAuthor || "husband";
+    let author = myRole;
     if (text.includes("vợ") || text.includes("mẹ nó") || text.includes("vợ chi") || text.includes("vợ mua")) {
       author = "wife";
     } else if (text.includes("chồng") || text.includes("bố nó") || text.includes("chồng chi") || text.includes("anh mua")) {
@@ -85,10 +115,7 @@ const AIAssistant = (() => {
 
     // Nhận diện ví (Cá nhân hay Gia đình)
     let wallet = "family";
-    const myRole = Store.state.settings.activeAuthor;
-
     if (text.includes("cá nhân") || text.includes("tiêu vặt") || text.includes("riêng")) {
-      // Nếu nói về cá nhân nhưng lại là của người kia -> chuyển thành gia đình hoặc cảnh báo
       if ((myRole === "husband" && text.includes("vợ")) || (myRole === "wife" && text.includes("chồng"))) {
         wallet = "family";
       } else {
@@ -97,8 +124,8 @@ const AIAssistant = (() => {
     } else if (text.includes("gia đình") || text.includes("cả nhà") || text.includes("quỹ chung")) {
       wallet = "family";
     } else {
-      // Tự động: Học tập, con cái, bỉm sữa, chợ búa, hóa đơn điện nước -> GIA ĐÌNH
-      if (beneficiary !== "none" || text.includes("điện") || text.includes("nước") || text.includes("chợ") || text.includes("học") || text.includes("sữa") || text.includes("bỉm")) {
+      // Tự động: Học tập, con cái, bỉm sữa, chợ búa, điện nước -> GIA ĐÌNH. Còn lại cafe, ăn sáng -> CÁ NHÂN
+      if (beneficiary !== "none" || text.includes("điện") || text.includes("nước") || text.includes("chợ") || text.includes("học") || text.includes("sữa") || text.includes("bỉm") || text.includes("siêu thị")) {
         wallet = "family";
       } else {
         wallet = "personal";
@@ -107,7 +134,7 @@ const AIAssistant = (() => {
 
     // Nhận diện loại giao dịch (Thu hay Chi)
     let type = "expense";
-    if (text.includes("lương") || text.includes("thưởng") || text.includes("thu được") || text.includes("nhận")) {
+    if (text.includes("lương") || text.includes("thưởng") || text.includes("thu được") || text.includes("nhận tiền")) {
       type = "income";
     }
 
@@ -120,11 +147,13 @@ const AIAssistant = (() => {
       }
     }
     if (beneficiary !== "none" && category === "other") {
-      category = "baby";
+      category = (beneficiary === "Bo") ? "education" : "baby";
     }
 
-    // Tạo ghi chú sạch sẽ
-    let note = promptText.replace(/([0-9]+[.,]?[0-9]*\s*(tr|triệu|củ|m|k|nghìn|ngàn)?)/i, "").trim();
+    // Làm sạch ghi chú
+    let note = promptText.replace(new RegExp(parsedAmt.raw, "i"), "").trim();
+    note = note.replace(/\b(hết|mất|khoảng|tầm|vừa|ví gia đình|ví cá nhân|tiền)\b/gi, "").trim();
+    note = note.replace(/\s+/g, " ");
     if (!note) note = Store.CATEGORIES.find(c => c.id === category)?.name || "Chi tiêu";
 
     return {
@@ -141,13 +170,12 @@ const AIAssistant = (() => {
     };
   }
 
-  // Trả lời câu hỏi tài chính
+  // Trả lời câu hỏi tài chính với bảo mật cá nhân hóa
   function answerQueryOffline(query) {
     const q = query.toLowerCase();
     const summary = Store.getFinancialSummary();
     const txs = Store.state.transactions;
     const todayStr = new Date().toISOString().split("T")[0];
-
     const myRole = Store.state.settings.activeAuthor;
     const isHusband = myRole === "husband";
     const spouseTitle = isHusband ? "Vợ" : "Chồng";
@@ -161,17 +189,18 @@ const AIAssistant = (() => {
 
     // 1. Hỏi hôm nay
     if (q.includes("hôm nay") || q.includes("hnay")) {
-      const todayTxs = txs.filter(t => t.date.startsWith(todayStr) && t.type === "expense");
+      const todayTxs = Store.getFilteredTransactions().filter(t => t.date.startsWith(todayStr) && t.type === "expense");
       const todayTotal = todayTxs.reduce((sum, t) => sum + t.amount, 0);
 
       if (todayTxs.length === 0) {
-        return "Hôm nay bạn và gia đình chưa ghi nhận khoản chi tiêu nào!";
+        return "Hôm nay bạn chưa có khoản chi tiêu nào ghi nhận!";
       }
 
-      let res = `Hôm nay gia đình đã chi tổng cộng **${Store.formatMoney(todayTotal)}** gồm ${todayTxs.length} khoản:\n`;
+      let res = `Hôm nay đã chi tổng cộng **${Store.formatMoney(todayTotal)}** gồm ${todayTxs.length} khoản:\n`;
       todayTxs.forEach(t => {
         const authorName = t.author === "wife" ? "Vợ" : "Chồng";
-        res += `• ${t.note || t.category}: ${Store.formatMoney(t.amount)} (${authorName})\n`;
+        const walletName = t.wallet === "family" ? "Gia Đình" : "Cá Nhân";
+        res += `• ${t.note || t.category}: **${Store.formatMoney(t.amount)}** (${authorName} • ${walletName})\n`;
       });
       return res;
     }
@@ -184,9 +213,9 @@ const AIAssistant = (() => {
       return `Tháng này bạn đã chi cho **Bé Bông** tổng cộng **${Store.formatMoney(summary.childBong)}** (gồm sữa, bỉm, trường mầm non).`;
     }
 
-    // 3. Hỏi so sánh Chồng vs Vợ
+    // 3. Hỏi so sánh Chồng vs Vợ (trong Ví Gia Đình)
     if (q.includes("chồng") || q.includes("vợ") || q.includes("ai chi nhiều")) {
-      return `Tháng này tổng chi tiêu:\n• 👨 Chồng chi: **${Store.formatMoney(summary.husbandTotal)}** (${summary.husbandPercent}%)\n• 👩 Vợ chi: **${Store.formatMoney(summary.wifeTotal)}** (${summary.wifePercent}%)`;
+      return `Thống kê đóng góp vào **Ví Gia Đình** tháng này:\n• 👨 Chồng chi: **${Store.formatMoney(summary.husbandTotal)}** (${summary.husbandPercent}%)\n• 👩 Vợ chi: **${Store.formatMoney(summary.wifeTotal)}** (${summary.wifePercent}%)`;
     }
 
     // 4. Hỏi tổng chi / số dư
@@ -199,20 +228,21 @@ const AIAssistant = (() => {
 
   // Gọi Gemini API nếu người dùng có cấu hình Key
   async function callGemini(promptText) {
-    const key = localStorage.getItem(GEMINI_KEY_STORAGE);
+    const key = (typeof localStorage !== "undefined") ? localStorage.getItem(GEMINI_KEY_STORAGE) : null;
     if (!key) return null;
 
     try {
       const summary = Store.getFinancialSummary();
-      const recentTxs = Store.state.transactions.slice(0, 15);
+      const recentTxs = Store.getFilteredTransactions().slice(0, 15);
 
       const systemPrompt = `Bạn là Trợ lý Tài Chính Cá Nhân và Gia Đình thông minh trong app OmniWallet.
+Quy tắc bảo mật: Không bao giờ tiết lộ ví cá nhân của vợ cho chồng hoặc ngược lại.
 Dữ liệu hiện tại:
 - Tổng thu tháng: ${summary.totalIncome} VNĐ
 - Tổng chi tháng: ${summary.totalExpense} VNĐ
 - Chi cho Bé Bo: ${summary.childBo} VNĐ
 - Chi cho Bé Bông: ${summary.childBong} VNĐ
-- Chồng chi: ${summary.husbandTotal} VNĐ, Vợ chi: ${summary.wifeTotal} VNĐ
+- Chồng chi gia đình: ${summary.husbandTotal} VNĐ, Vợ chi gia đình: ${summary.wifeTotal} VNĐ
 - Giao dịch gần nhất: ${JSON.stringify(recentTxs)}
 
 Hãy trả lời ngắn gọn, tình cảm, hài hước và chuẩn xác bằng tiếng Việt.`;
@@ -236,6 +266,7 @@ Hãy trả lời ngắn gọn, tình cảm, hài hước và chuẩn xác bằng
   }
 
   return {
+    parseAmount,
     parseNaturalTextOffline,
     answerQueryOffline,
     callGemini
