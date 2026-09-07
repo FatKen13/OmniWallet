@@ -1216,17 +1216,32 @@ document.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById("qr-canvas");
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+
+    // Vẽ nền trắng trong khi chờ
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, 180, 180);
-    ctx.fillStyle = "#0f172a";
-    // Pattern mô phỏng QR Code đẹp mắt
-    for (let i = 0; i < 9; i++) {
-      for (let j = 0; j < 9; j++) {
-        if ((i + j) % 2 === 0 || (i === 0 || i === 8 || j === 0 || j === 8)) {
-          ctx.fillRect(10 + i * 18, 10 + j * 18, 14, 14);
+
+    // Tải mã QR thật có thể quét bằng camera điện thoại
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      ctx.clearRect(0, 0, 180, 180);
+      ctx.drawImage(img, 0, 0, 180, 180);
+    };
+    img.onerror = () => {
+      // Fallback nếu không có internet: vẽ pattern QR mô phỏng
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, 180, 180);
+      ctx.fillStyle = "#0f172a";
+      for (let i = 0; i < 9; i++) {
+        for (let j = 0; j < 9; j++) {
+          if ((i + j) % 2 === 0 || (i === 0 || i === 8 || j === 0 || j === 8)) {
+            ctx.fillRect(10 + i * 18, 10 + j * 18, 14, 14);
+          }
         }
       }
-    }
+    };
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(text)}`;
   }
 
   // ==================== FAMILY & MEMBER MANAGEMENT MODAL ====================
