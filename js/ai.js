@@ -80,7 +80,8 @@ const AIAssistant = (() => {
       id: "entertainment", 
       words: [
         "phim", "cinema", "du lịch", "vé", "karaoke", "game", "netflix", "spotify", 
-        "chơi", "cắm trại", "resort", "khách sạn", "hồ bơi", "steam", "xem phim", "vé xem phim"
+        "chơi", "cắm trại", "resort", "khách sạn", "hồ bơi", "steam", "xem phim", "vé xem phim",
+        "gắp thú", "khu vui chơi", "bida", "bowling", "công viên", "thú nhún", "vui chơi"
       ] 
     },
     { 

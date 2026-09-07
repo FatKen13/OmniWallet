@@ -875,6 +875,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Trường hợp 1: Nhận diện nhiều giao dịch trong 1 câu (VD: "ăn trưa 50k và đổ xăng 80k")
       if (parsed.isMultiple && parsed.dataList && parsed.dataList.length > 0) {
         let totalAmt = 0;
+        const multiBtnId = "btn-save-ai-multi-" + Date.now() + "-" + Math.floor(Math.random() * 10000);
         let listHtml = `Tôi đã nhận diện được **${parsed.dataList.length}** khoản chi tiêu cùng lúc:<div class="ai-multi-confirm-box">`;
         
         parsed.dataList.forEach((d, idx) => {
@@ -896,17 +897,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
         listHtml += `
           <div class="ai-multi-total">Tổng cộng: <strong>${Store.formatMoney(totalAmt)}</strong></div>
-          <button class="btn-confirm-ai" id="btn-save-ai-multi">Xác Nhận & Lưu Toàn Bộ ${parsed.dataList.length} Khoản</button>
+          <button class="btn-confirm-ai" id="${multiBtnId}">Xác Nhận & Lưu Toàn Bộ ${parsed.dataList.length} Khoản</button>
         </div>`;
 
         appendAIMsg("bot", listHtml);
 
-        document.getElementById("btn-save-ai-multi")?.addEventListener("click", () => {
-          parsed.dataList.forEach(d => Store.addTransaction(d));
-          renderAll();
-          appendAIMsg("bot", `✅ Đã lưu thành công **${parsed.dataList.length}** khoản chi (tổng **${Store.formatMoney(totalAmt)}**) vào ví!`);
-          showToast(`Đã lưu ${parsed.dataList.length} giao dịch!`, "fa-circle-check");
-        });
+        const multiBtn = document.getElementById(multiBtnId);
+        if (multiBtn) {
+          multiBtn.addEventListener("click", () => {
+            if (multiBtn.disabled) return;
+            multiBtn.disabled = true;
+            multiBtn.innerHTML = `<i class="fa-solid fa-check"></i> Đã Lưu Toàn Bộ Vào Ví`;
+            multiBtn.style.opacity = "0.7";
+            multiBtn.style.cursor = "default";
+
+            parsed.dataList.forEach(d => Store.addTransaction(d));
+            renderAll();
+            appendAIMsg("bot", `✅ Đã lưu thành công **${parsed.dataList.length}** khoản chi (tổng **${Store.formatMoney(totalAmt)}**) vào ví!`);
+            showToast(`Đã lưu ${parsed.dataList.length} giao dịch!`, "fa-circle-check");
+          });
+        }
         return;
       }
 
@@ -919,6 +929,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const walletName = d.wallet === "family" ? "Gia Đình" : "Cá Nhân";
         const childDisplayName = Store.getChildDisplayName(d.beneficiary);
         const childText = childDisplayName ? ` (${childDisplayName})` : "";
+        const singleBtnId = "btn-save-ai-" + Date.now() + "-" + Math.floor(Math.random() * 10000);
 
         const confirmHtml = `
           Tôi đã nhận diện giao dịch này:
@@ -927,17 +938,26 @@ document.addEventListener("DOMContentLoaded", () => {
             <span>Danh mục: ${cat.emoji} ${cat.name}${childText}</span>
             <span>Người chi: ${authorName} • Ví: ${walletName}</span>
             <span>Ghi chú: "${d.note}"</span>
-            <button class="btn-confirm-ai" id="btn-save-ai-parsed">Xác Nhận & Lưu Ngay</button>
+            <button class="btn-confirm-ai" id="${singleBtnId}">Xác Nhận & Lưu Ngay</button>
           </div>
         `;
         appendAIMsg("bot", confirmHtml);
 
-        document.getElementById("btn-save-ai-parsed")?.addEventListener("click", () => {
-          Store.addTransaction(d);
-          renderAll();
-          appendAIMsg("bot", `✅ Đã lưu thành công **${Store.formatMoney(d.amount)}** vào ví!`);
-          showToast("AI đã lưu khoản chi thành công!");
-        });
+        const singleBtn = document.getElementById(singleBtnId);
+        if (singleBtn) {
+          singleBtn.addEventListener("click", () => {
+            if (singleBtn.disabled) return;
+            singleBtn.disabled = true;
+            singleBtn.innerHTML = `<i class="fa-solid fa-check"></i> Đã Lưu Vào Ví`;
+            singleBtn.style.opacity = "0.7";
+            singleBtn.style.cursor = "default";
+
+            Store.addTransaction(d);
+            renderAll();
+            appendAIMsg("bot", `✅ Đã lưu thành công **${Store.formatMoney(d.amount)}** vào ví!`);
+            showToast("AI đã lưu khoản chi thành công!");
+          });
+        }
         return;
       }
     }
@@ -961,6 +981,7 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     aiChatBody.appendChild(div);
     aiChatBody.scrollTop = aiChatBody.scrollHeight;
+    return div;
   }
 
   // Nhận diện giọng nói (Speech to Text vi-VN)
