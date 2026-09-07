@@ -217,21 +217,36 @@ const AIAssistant = (() => {
 
     const amount = parsedAmt.val;
 
-    // Nhận diện người chi (Chồng hay Vợ)
+    // Nhận diện người chi (Chồng hay Vợ / Tên tùy biến)
     const myRole = Store.state.settings.activeAuthor || "husband";
     let author = myRole;
-    if (text.includes("vợ") || text.includes("mẹ nó") || text.includes("vợ chi") || text.includes("vợ mua")) {
+    const husbandName = (Store.getMemberName("husband") || "Chồng").toLowerCase();
+    const wifeName = (Store.getMemberName("wife") || "Vợ").toLowerCase();
+
+    if (text.includes("vợ") || text.includes("mẹ nó") || text.includes("vợ chi") || text.includes("vợ mua") || (wifeName !== "vợ" && text.includes(wifeName))) {
       author = "wife";
-    } else if (text.includes("chồng") || text.includes("bố nó") || text.includes("chồng chi") || text.includes("anh mua")) {
+    } else if (text.includes("chồng") || text.includes("bố nó") || text.includes("chồng chi") || text.includes("anh mua") || (husbandName !== "chồng" && text.includes(husbandName))) {
       author = "husband";
     }
 
-    // Nhận diện con cái
+    // Nhận diện con cái (Tự động quét danh sách bé trong Store)
     let beneficiary = "none";
-    if (text.includes("cho bo") || text.includes("của bo") || text.includes("bé bo") || text.includes("con trai")) {
-      beneficiary = "Bo";
-    } else if (text.includes("cho bông") || text.includes("của bông") || text.includes("bé bông") || text.includes("con gái")) {
-      beneficiary = "Bông";
+    const allChildren = Store.getChildren();
+    for (const child of allChildren) {
+      const cName = (child.name || "").toLowerCase();
+      const cId = (child.id || "").toLowerCase();
+      if (text.includes("cho " + cName) || text.includes("của " + cName) || text.includes("bé " + cName) ||
+          text.includes("cho " + cId) || text.includes("của " + cId) || text.includes(cName)) {
+        beneficiary = child.id;
+        break;
+      }
+    }
+    if (beneficiary === "none") {
+      if (text.includes("cho bo") || text.includes("của bo") || text.includes("bé bo") || text.includes("con trai")) {
+        beneficiary = "Bo";
+      } else if (text.includes("cho bông") || text.includes("của bông") || text.includes("bé bông") || text.includes("con gái")) {
+        beneficiary = "Bông";
+      }
     }
 
     // Nhận diện ví (Cá nhân hay Gia đình)
@@ -387,20 +402,34 @@ const AIAssistant = (() => {
       return res;
     }
 
-    // 3. Hỏi con cái (Bo / Bông)
-    if (q.includes("bo")) {
-      return `👦 Chi phí nuôi **Bé Bo** tháng này: **${Store.formatMoney(summary.childBo)}** (gồm học tập, sách vở, đồ dùng).`;
+    // 3. Hỏi con cái (Tự động quét các bé trong gia đình)
+    const childrenList = Store.getChildren();
+    for (const child of childrenList) {
+      const cName = (child.name || "").toLowerCase();
+      const cId = (child.id || "").toLowerCase();
+      if (q.includes(cName) || q.includes(cId) || (cName.includes("bo") && q.includes("bo")) || (cName.includes("bông") && (q.includes("bông") || q.includes("bong")))) {
+        const amt = (summary.childrenMap && summary.childrenMap[child.id]) || 0;
+        return `${child.avatar || "👶"} Chi phí cho **${child.name}** tháng này: **${Store.formatMoney(amt)}** ${child.note ? `(Ghi chú: ${child.note})` : ""}.`;
+      }
     }
-    if (q.includes("bông") || q.includes("bong")) {
-      return `👧 Chi phí nuôi **Bé Bông** tháng này: **${Store.formatMoney(summary.childBong)}** (gồm bỉm sữa, mầm non, đồ chơi).`;
+    if (q.includes("con cái") || q.includes("các con") || q.includes("mấy đứa")) {
+      if (childrenList.length === 0) return "Gia đình chưa thêm thông tin bé nào!";
+      let res = `👶 **Chi phí cho các con tháng này:**\n`;
+      childrenList.forEach(child => {
+        const amt = (summary.childrenMap && summary.childrenMap[child.id]) || 0;
+        res += `• ${child.avatar || "👶"} **${child.name}**: ${Store.formatMoney(amt)}\n`;
+      });
+      return res;
     }
 
-    // 4. Hỏi so sánh Chồng vs Vợ (trong Ví Gia Đình)
-    if (q.includes("chồng") || q.includes("vợ") || q.includes("ai chi nhiều")) {
+    // 4. Hỏi so sánh Chồng vs Vợ / Hai Trụ Cột (trong Ví Gia Đình)
+    const hTitle = Store.getMemberName("husband");
+    const wTitle = Store.getMemberName("wife");
+    if (q.includes("chồng") || q.includes("vợ") || q.includes(hTitle.toLowerCase()) || q.includes(wTitle.toLowerCase()) || q.includes("ai chi nhiều")) {
       if (summary.totalFamily === 0) {
-        return "👨‍👩‍👧 Hai vợ chồng tháng này chưa có khoản chi chung nào trong Ví Gia Đình!";
+        return `👨‍👩‍👧 Cả hai (${hTitle} & ${wTitle}) tháng này chưa có khoản chi chung nào trong Ví Gia Đình!`;
       }
-      return `⚖️ **Đóng góp Ví Gia Đình tháng này:**\n• 👨 Chồng: **${Store.formatMoney(summary.husbandTotal)}** (${summary.husbandPercent}%)\n• 👩 Vợ: **${Store.formatMoney(summary.wifeTotal)}** (${summary.wifePercent}%)\n\n${summary.husbandPercent > summary.wifePercent ? "👉 Tháng này Chồng đang đóng góp nhiều hơn." : "👉 Tháng này Vợ đang đóng góp nhiều hơn."}`;
+      return `⚖️ **Đóng góp Ví Gia Đình tháng này:**\n• 👨 ${hTitle}: **${Store.formatMoney(summary.husbandTotal)}** (${summary.husbandPercent}%)\n• 👩 ${wTitle}: **${Store.formatMoney(summary.wifeTotal)}** (${summary.wifePercent}%)\n\n${summary.husbandPercent > summary.wifePercent ? `👉 Tháng này **${hTitle}** đang đóng góp nhiều hơn.` : `👉 Tháng này **${wTitle}** đang đóng góp nhiều hơn.`}`;
     }
 
     // 5. Hỏi danh mục tốn tiền nhất

@@ -14,6 +14,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const authorIcon = document.getElementById("author-icon");
   const authorName = document.getElementById("author-name");
 
+  const btnHeaderFamily = document.getElementById("btn-header-family");
+  const headerFamName = document.getElementById("header-fam-name");
+  const btnOpenFamilyModal = document.getElementById("btn-open-family-modal");
+  const familyModalOverlay = document.getElementById("family-modal-overlay");
+  const btnCloseFamilyModal = document.getElementById("btn-close-family-modal");
+
   const walletTabBtns = document.querySelectorAll(".wallet-tab-btn");
   const currentWalletLabel = document.getElementById("current-wallet-label");
   const displayBalance = document.getElementById("display-balance");
@@ -49,9 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const txList = document.getElementById("tx-list");
   const txCount = document.getElementById("tx-count");
 
-  const authorFilterChips = document.querySelectorAll("#author-filter-chips .filter-chip");
-  const childFilterChips = document.querySelectorAll("#child-filter-chips .filter-chip");
-
   let categoryChart = null;
   let dailyTrendChart = null;
 
@@ -69,10 +72,12 @@ document.addEventListener("DOMContentLoaded", () => {
   else currentWalletLabel.textContent = "Số Dư Toàn Bộ (Tổng Hợp)";
 
   updateFilterBarVisibility();
+  renderDynamicUI();
   renderAll();
   populateCategoryGrid();
   updateAuthorUI();
   setupSyncModal();
+  setupFamilyModal();
 
   // 2. Chuyển đổi Ví (Cá Nhân / Gia Đình / Tổng Hợp)
   walletTabBtns.forEach(btn => {
@@ -114,18 +119,21 @@ document.addEventListener("DOMContentLoaded", () => {
     Store.saveSettings();
     updateAuthorUI();
     renderAll();
-    showToast(`Đã chuyển sang: ${Store.state.settings.activeAuthor === "husband" ? "👨 Chồng" : "👩 Vợ"}`);
+    const curRole = Store.state.settings.activeAuthor;
+    const name = Store.getMemberName(curRole);
+    showToast(`Đã chuyển sang: ${curRole === "husband" ? "👨" : "👩"} ${name}`);
   });
 
   function updateAuthorUI() {
     const author = Store.state.settings.activeAuthor;
+    const name = Store.getMemberName(author);
     if (author === "husband") {
       authorIcon.textContent = "👨";
-      authorName.textContent = "Chồng (Tôi)";
+      authorName.textContent = `${name} (Tôi)`;
       btnToggleAuthor.style.borderColor = "var(--husband-color)";
     } else {
       authorIcon.textContent = "👩";
-      authorName.textContent = "Vợ (Tôi)";
+      authorName.textContent = `${name} (Tôi)`;
       btnToggleAuthor.style.borderColor = "var(--wife-color)";
     }
   }
@@ -141,6 +149,102 @@ document.addEventListener("DOMContentLoaded", () => {
     const isPrivate = Store.state.settings.privacyMode;
     eyeIcon.className = isPrivate ? "fa-regular fa-eye-slash" : "fa-regular fa-eye";
     renderBalance();
+  }
+
+  // Cập nhật giao diện động theo gia đình và thành viên tùy biến
+  function renderDynamicUI() {
+    // 1. Cập nhật tên gia đình trên Header
+    const curFam = Store.getCurrentFamily();
+    if (headerFamName && curFam) {
+      headerFamName.textContent = curFam.name;
+    }
+
+    // 2. Cập nhật nhãn người chi chính
+    updateAuthorUI();
+
+    // 3. Cập nhật tên vợ/chồng trên bộ lọc nhanh (Filter chips)
+    const hName = Store.getMemberName("husband");
+    const wName = Store.getMemberName("wife");
+
+    const chipH = document.querySelector('#author-filter-chips [data-author="husband"]');
+    const chipW = document.querySelector('#author-filter-chips [data-author="wife"]');
+    if (chipH) chipH.textContent = `👨 ${hName}`;
+    if (chipW) chipW.textContent = `👩 ${wName}`;
+
+    // Bắt sự kiện click cho author chips
+    document.querySelectorAll("#author-filter-chips .filter-chip").forEach(chip => {
+      chip.onclick = () => {
+        document.querySelectorAll("#author-filter-chips .filter-chip").forEach(c => c.classList.remove("active"));
+        chip.classList.add("active");
+        Store.state.settings.authorFilter = chip.getAttribute("data-author");
+        renderTransactions();
+      };
+    });
+
+    // 4. Cập nhật chip con cái
+    const childContainer = document.getElementById("child-filter-chips");
+    if (childContainer) {
+      const curChildFilter = Store.state.settings.childFilter || "all";
+      childContainer.innerHTML = `<button class="filter-chip ${curChildFilter === 'all' ? 'active' : ''}" data-child="all">Tất cả con</button>`;
+      Store.getChildren().forEach(child => {
+        const btn = document.createElement("button");
+        btn.className = `filter-chip ${curChildFilter === child.id ? 'active' : ''}`;
+        btn.setAttribute("data-child", child.id);
+        btn.textContent = `${child.avatar || '👶'} ${child.name}`;
+        childContainer.appendChild(btn);
+      });
+      childContainer.querySelectorAll(".filter-chip").forEach(chip => {
+        chip.onclick = () => {
+          childContainer.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          Store.state.settings.childFilter = chip.getAttribute("data-child");
+          renderTransactions();
+        };
+      });
+    }
+
+    // 5. Cập nhật form thêm chi tiêu (Add Modal Sheet)
+    const sheetH = document.querySelector('#sheet-author-segmented [data-val="husband"]');
+    const sheetW = document.querySelector('#sheet-author-segmented [data-val="wife"]');
+    if (sheetH) sheetH.textContent = `👨 ${hName}`;
+    if (sheetW) sheetW.textContent = `👩 ${wName}`;
+
+    const childSelectRow = document.querySelector("#sheet-beneficiary-group .child-select-row");
+    if (childSelectRow) {
+      childSelectRow.innerHTML = `<button type="button" class="child-btn active" data-val="none">👨‍👩‍👧 Chung cả nhà</button>`;
+      Store.getChildren().forEach(child => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "child-btn";
+        b.setAttribute("data-val", child.id);
+        b.textContent = `${child.avatar || '👶'} ${child.name}`;
+        childSelectRow.appendChild(b);
+      });
+      childSelectRow.querySelectorAll(".child-btn").forEach(btn => {
+        btn.onclick = () => {
+          childSelectRow.querySelectorAll(".child-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+        };
+      });
+    }
+
+    // 6. Cập nhật tiêu đề Analytics
+    const spouseCompTitle = document.getElementById("spouse-comparison-title");
+    if (spouseCompTitle) spouseCompTitle.innerHTML = `<i class="fa-solid fa-scale-balanced"></i> Đóng Góp Chi Tiêu (${hName} vs ${wName})`;
+    const spouseLblH = document.getElementById("spouse-label-husband");
+    const spouseLblW = document.getElementById("spouse-label-wife");
+    if (spouseLblH) spouseLblH.textContent = hName;
+    if (spouseLblW) spouseLblW.textContent = wName;
+
+    const childrenList = Store.getChildren();
+    const childrenAnalyticsTitle = document.getElementById("children-analytics-title");
+    if (childrenAnalyticsTitle) {
+      if (childrenList.length > 0) {
+        childrenAnalyticsTitle.innerHTML = `<i class="fa-solid fa-children"></i> Chi Phí Nuôi Con (${childrenList.map(c => c.name).join(" vs ")})`;
+      } else {
+        childrenAnalyticsTitle.innerHTML = `<i class="fa-solid fa-children"></i> Chi Phí Nuôi Con`;
+      }
+    }
   }
 
   // 5. Render toàn bộ
@@ -234,10 +338,19 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const cat = Store.CATEGORIES.find(c => c.id === t.category) || { name: "Khác", icon: "fa-circle-dot", color: "#64748b" };
+      const hName = Store.getMemberName("husband");
+      const wName = Store.getMemberName("wife");
       const authorClass = t.author === "wife" ? "wife" : "husband";
-      const authorText = t.author === "wife" ? "👩 Vợ" : "👨 Chồng";
+      const authorText = t.author === "wife" ? `👩 ${wName}` : `👨 ${hName}`;
       const isExpense = t.type === "expense";
       const timeText = formatTxTime(t.date);
+
+      let childBadge = "";
+      if (t.beneficiary && t.beneficiary !== "none") {
+        const foundChild = Store.getChildren().find(c => c.id === t.beneficiary);
+        const childLabel = foundChild ? `${foundChild.avatar} ${foundChild.name}` : `Bé ${t.beneficiary}`;
+        childBadge = `<span class="tx-badge child">${childLabel}</span>`;
+      }
 
       const card = document.createElement("div");
       card.className = "tx-card";
@@ -252,7 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
               ${timeText ? `<span class="tx-badge time"><i class="fa-regular fa-clock"></i> ${timeText}</span>` : ""}
               <span class="tx-badge ${authorClass}">${authorText}</span>
               <span class="tx-badge family">${t.wallet === "family" ? "Gia Đình" : "Cá Nhân"}</span>
-              ${t.beneficiary !== "none" ? `<span class="tx-badge child">Bé ${t.beneficiary}</span>` : ""}
+              ${childBadge}
             </div>
           </div>
         </div>
@@ -320,35 +433,58 @@ document.addEventListener("DOMContentLoaded", () => {
       cfBarFill.style.width = incomeFillPercent + "%";
     }
 
-    // 2. Cập nhật thẻ & thanh so sánh 2 con cái (Bo vs Bông)
-    const boEl = document.getElementById("child-amount-bo");
-    const bongEl = document.getElementById("child-amount-bong");
-    if (boEl) boEl.textContent = Store.formatMoney(summary.childBo);
-    if (bongEl) bongEl.textContent = Store.formatMoney(summary.childBong);
-
-    const childBarBo = document.getElementById("child-bar-bo");
-    const childBarBong = document.getElementById("child-bar-bong");
-    const totalChildExpense = summary.childBo + summary.childBong;
-
-    if (childBarBo && childBarBong) {
-      if (totalChildExpense === 0) {
-        childBarBo.style.width = "100%";
-        childBarBo.textContent = "Chưa có chi phí cho con";
-        childBarBo.style.background = "var(--border-glass-strong)";
-        childBarBong.style.display = "none";
+    // 2. Cập nhật thẻ & thanh so sánh con cái (Động theo Store.getChildren)
+    const childrenGrid = document.getElementById("children-analytics-grid");
+    const childrenList = Store.getChildren();
+    if (childrenGrid) {
+      childrenGrid.innerHTML = "";
+      if (childrenList.length === 0) {
+        childrenGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">Chưa thêm thông tin bé nào. Bấm vào Quản Lý Gia Đình & Thành Viên để thêm con.</div>`;
       } else {
-        const boPercent = Math.round((summary.childBo / totalChildExpense) * 100);
-        const bongPercent = 100 - boPercent;
+        childrenList.forEach(child => {
+          const amt = (summary.childrenMap && summary.childrenMap[child.id]) || 0;
+          const card = document.createElement("div");
+          card.className = "child-card";
+          card.innerHTML = `
+            <div class="child-card-header">
+              <span class="child-avatar">${child.avatar || "👶"}</span>
+              <div>
+                <h4>${child.name}</h4>
+                <small>${child.note || "Học tập, đồ dùng"}</small>
+              </div>
+            </div>
+            <div class="child-amount">${Store.formatMoney(amt)}</div>
+          `;
+          childrenGrid.appendChild(card);
+        });
+      }
+    }
 
-        childBarBo.style.display = "flex";
-        childBarBo.style.background = "#6366f1";
-        childBarBo.style.width = Math.max(boPercent, 10) + "%";
-        childBarBo.textContent = boPercent >= 15 ? `Bo: ${boPercent}%` : "";
+    // Thanh so sánh tỷ trọng chi cho các con
+    const childrenSpousesBar = document.getElementById("children-spouses-bar");
+    if (childrenSpousesBar) {
+      childrenSpousesBar.innerHTML = "";
+      let totalChild = 0;
+      childrenList.forEach(c => {
+        totalChild += (summary.childrenMap && summary.childrenMap[c.id]) || 0;
+      });
 
-        childBarBong.style.display = bongPercent > 0 ? "flex" : "none";
-        childBarBong.style.background = "#ec4899";
-        childBarBong.style.width = Math.max(bongPercent, 10) + "%";
-        childBarBong.textContent = bongPercent >= 15 ? `Bông: ${bongPercent}%` : "";
+      if (totalChild === 0 || childrenList.length === 0) {
+        childrenSpousesBar.innerHTML = `<div class="spouses-segment" style="width: 100%; background: var(--border-glass-strong); color: var(--text-muted); justify-content: center;">Chưa có chi phí cho con</div>`;
+      } else {
+        const palette = ["#6366f1", "#ec4899", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4"];
+        childrenList.forEach((child, idx) => {
+          const amt = (summary.childrenMap && summary.childrenMap[child.id]) || 0;
+          const pct = Math.round((amt / totalChild) * 100);
+          if (pct > 0) {
+            const seg = document.createElement("div");
+            seg.className = "spouses-segment";
+            seg.style.background = palette[idx % palette.length];
+            seg.style.width = Math.max(pct, 12) + "%";
+            seg.textContent = pct >= 15 ? `${child.name}: ${pct}%` : `${pct}%`;
+            childrenSpousesBar.appendChild(seg);
+          }
+        });
       }
     }
 
@@ -487,25 +623,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Bộ lọc nhanh
-  authorFilterChips.forEach(chip => {
-    chip.addEventListener("click", () => {
-      authorFilterChips.forEach(c => c.classList.remove("active"));
-      chip.classList.add("active");
-      Store.state.settings.authorFilter = chip.getAttribute("data-author");
-      renderTransactions();
-    });
-  });
-
-  childFilterChips.forEach(chip => {
-    chip.addEventListener("click", () => {
-      childFilterChips.forEach(c => c.classList.remove("active"));
-      chip.classList.add("active");
-      Store.state.settings.childFilter = chip.getAttribute("data-child");
-      renderTransactions();
-    });
-  });
-
   // ==================== POPULATE & MODAL ADD ====================
   function populateCategoryGrid() {
     const grid = document.getElementById("category-grid");
@@ -614,18 +731,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Phím ESC đóng mọi modal
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      addModalOverlay.classList.remove("active");
-      aiModalOverlay.classList.remove("active");
-      syncModalOverlay.classList.remove("active");
+      addModalOverlay?.classList.remove("active");
+      aiModalOverlay?.classList.remove("active");
+      syncModalOverlay?.classList.remove("active");
+      familyModalOverlay?.classList.remove("active");
     }
-  });
-
-  // Child select in sheet
-  document.querySelectorAll(".child-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".child-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-    });
   });
 
   // Wallet & Author mini segmented
@@ -884,21 +994,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ==================== SYNC MODAL & MAGIC LINK ====================
   function setupSyncModal() {
-    const vaultId = Store.state.settings.vaultId || "family";
-    const shareUrl = `${window.location.origin}${window.location.pathname}#vault=${vaultId}&role=wife`;
+    const curFam = Store.getCurrentFamily();
+    const vaultId = curFam.vaultId || Store.state.settings.vaultId || "family";
+    const shareUrl = `${window.location.origin}${window.location.pathname}#vault=${vaultId}&role=wife&fam=${encodeURIComponent(curFam.name)}`;
     syncShareUrl.value = shareUrl;
 
-    btnOpenSync.addEventListener("click", () => syncModalOverlay.classList.add("active"));
-    btnCloseSyncModal.addEventListener("click", () => syncModalOverlay.classList.remove("active"));
-    syncModalOverlay.addEventListener("click", (e) => {
+    btnOpenSync.onclick = () => syncModalOverlay.classList.add("active");
+    btnCloseSyncModal.onclick = () => syncModalOverlay.classList.remove("active");
+    syncModalOverlay.onclick = (e) => {
       if (e.target === syncModalOverlay) syncModalOverlay.classList.remove("active");
-    });
+    };
 
-    btnCopyShareUrl.addEventListener("click", () => {
+    btnCopyShareUrl.onclick = () => {
       navigator.clipboard.writeText(shareUrl).then(() => {
         showToast("Đã sao chép link Zalo! Hãy gửi cho vợ", "fa-clipboard-check");
       });
-    });
+    };
 
     // Vẽ QR Code đơn giản lên Canvas
     drawSimpleQR(shareUrl);
@@ -938,6 +1049,300 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     }
+  }
+
+  // ==================== FAMILY & MEMBER MANAGEMENT MODAL ====================
+  function setupFamilyModal() {
+    if (!familyModalOverlay) return;
+
+    const openModal = (tab = "families") => {
+      familyModalOverlay.classList.add("active");
+      switchFamilyTab(tab);
+      renderFamilyList();
+      renderChildrenManageList();
+      // Pre-fill member names
+      const inH = document.getElementById("input-rename-husband");
+      const inW = document.getElementById("input-rename-wife");
+      if (inH) inH.value = Store.getMemberName("husband");
+      if (inW) inW.value = Store.getMemberName("wife");
+    };
+
+    btnHeaderFamily?.addEventListener("click", () => openModal("families"));
+    btnOpenFamilyModal?.addEventListener("click", () => openModal("families"));
+    btnCloseFamilyModal?.addEventListener("click", () => familyModalOverlay.classList.remove("active"));
+    familyModalOverlay.addEventListener("click", (e) => {
+      if (e.target === familyModalOverlay) familyModalOverlay.classList.remove("active");
+    });
+
+    // Tab switching inside modal
+    const tabBtnFamilies = document.getElementById("tab-btn-families");
+    const tabBtnMembers = document.getElementById("tab-btn-members");
+    const paneFamilies = document.getElementById("pane-families");
+    const paneMembers = document.getElementById("pane-members");
+
+    function switchFamilyTab(tab) {
+      if (tab === "families") {
+        tabBtnFamilies?.classList.add("active");
+        tabBtnMembers?.classList.remove("active");
+        if (paneFamilies) paneFamilies.style.display = "block";
+        if (paneMembers) paneMembers.style.display = "none";
+      } else {
+        tabBtnMembers?.classList.add("active");
+        tabBtnFamilies?.classList.remove("active");
+        if (paneMembers) paneMembers.style.display = "block";
+        if (paneFamilies) paneFamilies.style.display = "none";
+      }
+    }
+
+    tabBtnFamilies?.addEventListener("click", () => switchFamilyTab("families"));
+    tabBtnMembers?.addEventListener("click", () => switchFamilyTab("members"));
+
+    // 1. Render danh sách các gia đình
+    function renderFamilyList() {
+      const container = document.getElementById("family-list-container");
+      const badge = document.getElementById("family-count-badge");
+      if (!container) return;
+      container.innerHTML = "";
+
+      const families = Store.getFamilies();
+      const currentFam = Store.getCurrentFamily();
+      if (badge) badge.textContent = `${families.length} gia đình`;
+
+      families.forEach(fam => {
+        const isActive = fam.id === currentFam.id;
+        const item = document.createElement("div");
+        item.className = `family-card-item ${isActive ? "active" : ""}`;
+        item.innerHTML = `
+          <div class="fam-item-left">
+            <div class="fam-icon-circle">🏡</div>
+            <div class="fam-item-info">
+              <h5>
+                ${fam.name}
+                ${isActive ? '<span class="fam-status-tag">Đang chọn</span>' : ""}
+              </h5>
+              <small><i class="fa-solid fa-key" style="font-size: 0.65rem;"></i> Mã ví: ${fam.vaultId || "default"}</small>
+            </div>
+          </div>
+          <div class="fam-item-actions">
+            ${!isActive ? `<button class="fam-switch-btn" data-id="${fam.id}"><i class="fa-solid fa-arrow-right-arrow-left"></i> Chọn</button>` : ""}
+            <button class="fam-icon-action edit" data-id="${fam.id}" title="Đổi tên gia đình"><i class="fa-regular fa-pen-to-square"></i></button>
+            ${families.length > 1 ? `<button class="fam-icon-action del" data-id="${fam.id}" title="Xóa gia đình"><i class="fa-regular fa-trash-can"></i></button>` : ""}
+          </div>
+        `;
+        container.appendChild(item);
+      });
+
+      // Switch family click
+      container.querySelectorAll(".fam-switch-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-id");
+          const switched = Store.switchFamily(id);
+          if (switched) {
+            renderFamilyList();
+            renderDynamicUI();
+            renderAll();
+            setupSyncModal();
+            showToast(`Đã chuyển sang: 🏡 ${switched.name}`, "fa-house-chimney");
+          }
+        });
+      });
+
+      // Rename family click
+      container.querySelectorAll(".fam-icon-action.edit").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-id");
+          const fam = families.find(f => f.id === id);
+          if (!fam) return;
+          const newName = prompt(`Nhập tên mới cho gia đình "${fam.name}":`, fam.name);
+          if (newName && newName.trim() && newName.trim() !== fam.name) {
+            Store.renameFamily(id, newName.trim());
+            renderFamilyList();
+            renderDynamicUI();
+            setupSyncModal();
+            showToast(`Đã đổi tên thành "${newName.trim()}"`);
+          }
+        });
+      });
+
+      // Delete family click
+      container.querySelectorAll(".fam-icon-action.del").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-id");
+          const fam = families.find(f => f.id === id);
+          if (!fam) return;
+          if (confirm(`Bạn có chắc muốn xóa gia đình "${fam.name}"?`)) {
+            Store.deleteFamily(id);
+            renderFamilyList();
+            renderDynamicUI();
+            renderAll();
+            setupSyncModal();
+            showToast(`Đã xóa gia đình "${fam.name}"`, "fa-trash");
+          }
+        });
+      });
+    }
+
+    // 2. Tạo gia đình mới
+    document.getElementById("btn-create-family")?.addEventListener("click", () => {
+      const input = document.getElementById("input-new-family-name");
+      const name = input ? input.value.trim() : "";
+      if (!name) {
+        alert("Vui lòng nhập tên cho gia đình mới (VD: Nhà Ngoại, Nhà Nội...)");
+        input?.focus();
+        return;
+      }
+      const newFam = Store.addFamily(name);
+      if (newFam) {
+        input.value = "";
+        renderFamilyList();
+        renderDynamicUI();
+        renderAll();
+        setupSyncModal();
+        showToast(`Đã tạo gia đình "${newFam.name}" thành công!`, "fa-house-circle-check");
+      }
+    });
+
+    // 3. Tham gia gia đình bằng mã ví
+    document.getElementById("btn-join-family")?.addEventListener("click", () => {
+      const inVault = document.getElementById("input-join-vault-id");
+      const inName = document.getElementById("input-join-family-name");
+      const vaultId = inVault ? inVault.value.trim() : "";
+      const famName = inName && inName.value.trim() ? inName.value.trim() : "Gia Đình Đã Tham Gia";
+
+      if (!vaultId) {
+        alert("Vui lòng nhập mã Vault ID được chia sẻ từ người thân!");
+        inVault?.focus();
+        return;
+      }
+
+      const joinedFam = Store.addFamily(famName, vaultId);
+      if (joinedFam) {
+        if (inVault) inVault.value = "";
+        if (inName) inName.value = "";
+        renderFamilyList();
+        renderDynamicUI();
+        renderAll();
+        setupSyncModal();
+        showToast(`Đã tham gia gia đình "${joinedFam.name}"!`, "fa-link");
+      }
+    });
+
+    // 4. Đổi tên thành viên (Chồng / Vợ)
+    document.getElementById("btn-save-member-names")?.addEventListener("click", () => {
+      const inH = document.getElementById("input-rename-husband");
+      const inW = document.getElementById("input-rename-wife");
+      const hVal = inH ? inH.value.trim() : "";
+      const wVal = inW ? inW.value.trim() : "";
+
+      if (hVal) Store.setMemberName("husband", hVal);
+      if (wVal) Store.setMemberName("wife", wVal);
+
+      updateAuthorUI();
+      renderDynamicUI();
+      renderAll();
+      showToast("Đã lưu tên thành viên thành công!", "fa-floppy-disk");
+    });
+
+    // 5. Quản lý con cái (Danh sách bé)
+    function renderChildrenManageList() {
+      const list = document.getElementById("children-manage-list");
+      const badge = document.getElementById("children-count-badge");
+      if (!list) return;
+      list.innerHTML = "";
+
+      const children = Store.getChildren();
+      if (badge) badge.textContent = `${children.length} bé`;
+
+      if (children.length === 0) {
+        list.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem 0;">Chưa có bé nào. Hãy thêm bé ở bên dưới!</div>`;
+        return;
+      }
+
+      children.forEach(child => {
+        const item = document.createElement("div");
+        item.className = "child-manage-item";
+        item.innerHTML = `
+          <div class="child-item-left">
+            <div class="child-avatar-pill">${child.avatar || "👶"}</div>
+            <div class="child-item-info">
+              <h5>${child.name}</h5>
+              <small>${child.note || "Chi phí sinh hoạt, học tập"}</small>
+            </div>
+          </div>
+          <div class="fam-item-actions">
+            <button class="fam-icon-action edit" data-id="${child.id}" title="Sửa tên / ghi chú"><i class="fa-regular fa-pen-to-square"></i></button>
+            <button class="fam-icon-action del" data-id="${child.id}" title="Xóa bé"><i class="fa-regular fa-trash-can"></i></button>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+
+      // Edit child
+      list.querySelectorAll(".fam-icon-action.edit").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-id");
+          const child = children.find(c => c.id === id);
+          if (!child) return;
+          const newName = prompt(`Nhập tên mới cho bé "${child.name}":`, child.name);
+          if (newName && newName.trim()) {
+            const newNote = prompt(`Nhập ghi chú cho bé "${newName.trim()}":`, child.note || "");
+            Store.renameChild(id, newName.trim(), child.avatar, newNote !== null ? newNote : child.note);
+            renderChildrenManageList();
+            renderDynamicUI();
+            renderAll();
+            showToast(`Đã cập nhật thông tin bé "${newName.trim()}"!`);
+          }
+        });
+      });
+
+      // Delete child
+      list.querySelectorAll(".fam-icon-action.del").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-id");
+          const child = children.find(c => c.id === id);
+          if (!child) return;
+          if (confirm(`Bạn có chắc muốn xóa bé "${child.name}" khỏi danh sách?`)) {
+            Store.deleteChild(id);
+            renderChildrenManageList();
+            renderDynamicUI();
+            renderAll();
+            showToast(`Đã xóa bé "${child.name}"`, "fa-trash");
+          }
+        });
+      });
+    }
+
+    // Avatar Picker
+    let selectedAvatar = "👦";
+    document.querySelectorAll(".avatar-pick-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".avatar-pick-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        selectedAvatar = btn.getAttribute("data-emoji") || "👶";
+      });
+    });
+
+    // Thêm bé mới
+    document.getElementById("btn-add-child")?.addEventListener("click", () => {
+      const inName = document.getElementById("input-new-child-name");
+      const inNote = document.getElementById("input-new-child-note");
+      const name = inName ? inName.value.trim() : "";
+      const note = inNote ? inNote.value.trim() : "";
+
+      if (!name) {
+        alert("Vui lòng nhập tên bé (VD: Bé Bin, Bé Na, Bé Bơ...)");
+        inName?.focus();
+        return;
+      }
+
+      Store.addChild(name, selectedAvatar, note);
+      if (inName) inName.value = "";
+      if (inNote) inNote.value = "";
+      renderChildrenManageList();
+      renderDynamicUI();
+      renderAll();
+      showToast(`Đã thêm bé "${name}" vào gia đình!`, "fa-child");
+    });
   }
 
   // ==================== THEME TOGGLE ====================

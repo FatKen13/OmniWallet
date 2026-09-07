@@ -28,13 +28,25 @@ const Store = (() => {
   let state = {
     transactions: [],
     settings: {
-      activeAuthor: "husband", // 'husband' (Chồng) | 'wife' (Vợ) cố định cho thiết bị này
+      activeAuthor: "husband", // 'husband' | 'wife' cố định cho thiết bị này
       activeWallet: "personal", // 'personal' | 'family' | 'all'
       authorFilter: "all",
       childFilter: "all",
       privacyMode: false,
       monthlyBudget: 15000000,
-      vaultId: null
+      vaultId: null,
+      currentFamilyId: "fam_main",
+      families: [
+        { id: "fam_main", name: "Gia Đình Nhỏ", vaultId: "vault_default" }
+      ],
+      members: {
+        husband: "Chồng",
+        wife: "Vợ"
+      },
+      children: [
+        { id: "Bo", name: "Bé Bo", avatar: "👦", note: "Tiền học, đồ dùng" },
+        { id: "Bông", name: "Bé Bông", avatar: "👧", note: "Mầm non, bỉm sữa" }
+      ]
     }
   };
 
@@ -45,19 +57,53 @@ const Store = (() => {
         state.settings = { ...state.settings, ...JSON.parse(rawSettings) };
       }
 
-      // Kiểm tra tham số URL nếu mở từ link mời Zalo: vd ...#vault=xyz&role=wife
+      // Đảm bảo cấu trúc các trường mới luôn tồn tại (tương thích ngược)
+      if (!state.settings.members || typeof state.settings.members !== "object") {
+        state.settings.members = { husband: "Chồng", wife: "Vợ" };
+      }
+      if (!Array.isArray(state.settings.children) || state.settings.children.length === 0) {
+        state.settings.children = [
+          { id: "Bo", name: "Bé Bo", avatar: "👦", note: "Tiền học, đồ dùng" },
+          { id: "Bông", name: "Bé Bông", avatar: "👧", note: "Mầm non, bỉm sữa" }
+        ];
+      }
+      if (!Array.isArray(state.settings.families) || state.settings.families.length === 0) {
+        const defaultVaultId = state.settings.vaultId || ("vault_" + Math.random().toString(36).substring(2, 9));
+        state.settings.families = [
+          { id: "fam_main", name: "Gia Đình Nhỏ", vaultId: defaultVaultId }
+        ];
+      }
+      if (!state.settings.currentFamilyId) {
+        state.settings.currentFamilyId = state.settings.families[0].id;
+      }
+
+      // Đảm bảo vaultId luôn khớp với gia đình hiện tại
+      const curFam = state.settings.families.find(f => f.id === state.settings.currentFamilyId) || state.settings.families[0];
+      state.settings.currentFamilyId = curFam.id;
+      state.settings.vaultId = curFam.vaultId;
+
+      // Kiểm tra tham số URL nếu mở từ link mời Zalo: vd ...#vault=xyz&role=wife&fam=...
       const hashParams = (typeof window !== "undefined" && window.location) ? new URLSearchParams(window.location.hash.substring(1)) : new URLSearchParams();
       const sharedVault = hashParams.get("vault");
       const roleParam = hashParams.get("role");
+      const famNameParam = hashParams.get("fam");
 
       if (sharedVault) {
+        let existingFam = state.settings.families.find(f => f.vaultId === sharedVault);
+        if (!existingFam) {
+          existingFam = {
+            id: "fam_" + Date.now().toString(36),
+            name: famNameParam ? decodeURIComponent(famNameParam) : "Gia Đình Chia Sẻ",
+            vaultId: sharedVault
+          };
+          state.settings.families.push(existingFam);
+        }
+        state.settings.currentFamilyId = existingFam.id;
         state.settings.vaultId = sharedVault;
       }
+
       if (roleParam === "wife" || roleParam === "husband") {
         state.settings.activeAuthor = roleParam;
-      }
-      if (!state.settings.vaultId) {
-        state.settings.vaultId = "vault_" + Math.random().toString(36).substring(2, 9);
       }
       saveSettings();
 
@@ -89,6 +135,7 @@ const Store = (() => {
         wallet: "personal",
         author: myRole,
         beneficiary: "none",
+        familyId: null,
         date: today + "T08:30:00"
       },
       // Các khoản chung của gia đình (cả 2 vợ chồng đều thấy)
@@ -101,6 +148,7 @@ const Store = (() => {
         wallet: "family",
         author: "husband",
         beneficiary: "Bo",
+        familyId: "fam_main",
         date: today + "T09:45:00"
       },
       {
@@ -112,6 +160,7 @@ const Store = (() => {
         wallet: "family",
         author: "wife",
         beneficiary: "Bông",
+        familyId: "fam_main",
         date: today + "T10:15:00"
       },
       {
@@ -123,6 +172,7 @@ const Store = (() => {
         wallet: "family",
         author: "wife",
         beneficiary: "none",
+        familyId: "fam_main",
         date: today + "T11:20:00"
       },
       {
@@ -134,6 +184,7 @@ const Store = (() => {
         wallet: "family",
         author: myRole,
         beneficiary: "none",
+        familyId: "fam_main",
         date: today + "T07:00:00"
       }
     ];
@@ -163,6 +214,7 @@ const Store = (() => {
   function addTransaction(tx) {
     const myRole = state.settings.activeAuthor;
     const targetWallet = tx.wallet || "personal";
+    const currentFamily = getCurrentFamily();
 
     // Nếu là ví cá nhân, người chi BẮT BUỘC là chính chủ máy (không thể tạo ví cá nhân hộ người khác)
     const author = (targetWallet === "personal") ? myRole : (tx.author || myRole);
@@ -176,6 +228,7 @@ const Store = (() => {
       wallet: targetWallet,
       author: author,
       beneficiary: (targetWallet === "personal") ? "none" : (tx.beneficiary || "none"),
+      familyId: (targetWallet === "family") ? (tx.familyId || (currentFamily ? currentFamily.id : "fam_main")) : null,
       date: tx.date || new Date().toISOString()
     };
 
@@ -184,7 +237,7 @@ const Store = (() => {
 
     // CHỈ ĐỒNG BỘ LÊN CLOUD NẾU LÀ VÍ GIA ĐÌNH!
     // Ví cá nhân giữ lại cục bộ trên máy, KHÔNG BAO GIỜ đẩy lên kênh chung!
-    if (targetWallet === "family" && window.SupabaseSync && typeof window.SupabaseSync.pushTransaction === "function") {
+    if (targetWallet === "family" && typeof window !== "undefined" && window.SupabaseSync && typeof window.SupabaseSync.pushTransaction === "function") {
       window.SupabaseSync.pushTransaction(newTx);
     }
 
@@ -200,7 +253,7 @@ const Store = (() => {
     state.transactions = state.transactions.filter(t => t.id !== id);
     save();
 
-    if (tx.wallet === "family" && window.SupabaseSync && typeof window.SupabaseSync.deleteRemoteTransaction === "function") {
+    if (tx.wallet === "family" && typeof window !== "undefined" && window.SupabaseSync && typeof window.SupabaseSync.deleteRemoteTransaction === "function") {
       window.SupabaseSync.deleteRemoteTransaction(id);
     }
   }
@@ -209,36 +262,44 @@ const Store = (() => {
    * BỘ LỌC CỐT LÕI (BẢO MẬT & CÁ NHÂN HÓA):
    * - Nếu tx là 'personal': CHỈ CHẤP NHẬN NẾU tx.author === myRole.
    *   Khoản cá nhân của người kia TUYỆT ĐỐI BỊ LOẠI BỎ (không bao giờ hiển thị).
-   * - Nếu tx là 'family': CẢ 2 VỢ CHỒNG ĐỀU ĐƯỢC XEM.
+   * - Nếu tx là 'family': Chỉ hiển thị nếu thuộc gia đình hiện tại (hoặc giao dịch mặc định ban đầu).
+   * - Sắp xếp theo ngày giờ mới nhất lên đầu.
    */
   function getFilteredTransactions() {
-    const { activeAuthor, activeWallet, childFilter } = state.settings;
+    const { activeAuthor, activeWallet, childFilter, authorFilter, currentFamilyId } = state.settings;
 
-    return state.transactions.filter(tx => {
+    const filtered = state.transactions.filter(tx => {
       // 1. Kiểm tra an toàn cá nhân: Khoản cá nhân của người kia bị loại bỏ ngay từ đầu
       if (tx.wallet === "personal" && tx.author !== activeAuthor) {
         return false;
       }
 
-      // 2. Lọc theo tab ví đang chọn:
+      // 2. Lọc theo gia đình đang kích hoạt
+      if (tx.wallet === "family") {
+        const txFamId = tx.familyId || "fam_main";
+        if (txFamId !== (currentFamilyId || "fam_main")) {
+          return false;
+        }
+      }
+
+      // 3. Lọc theo tab ví đang chọn:
       if (activeWallet === "personal") {
         if (tx.wallet !== "personal" || tx.author !== activeAuthor) return false;
       } else if (activeWallet === "family") {
         if (tx.wallet !== "family") return false;
       } else if (activeWallet === "all") {
-        // Tổng hợp = Khoản cá nhân của chính mình + Toàn bộ khoản chung gia đình
+        // Tổng hợp = Khoản cá nhân của chính mình + Toàn bộ khoản chung của gia đình này
         const isMyPersonal = (tx.wallet === "personal" && tx.author === activeAuthor);
         const isFamily = (tx.wallet === "family");
         if (!isMyPersonal && !isFamily) return false;
       }
 
-      // 3. Lọc theo con cái (nếu đang ở ví gia đình hoặc tổng hợp)
+      // 4. Lọc theo con cái (nếu đang ở ví gia đình hoặc tổng hợp)
       if (childFilter && childFilter !== "all" && tx.beneficiary !== childFilter) {
         return false;
       }
 
-      // 4. Lọc theo người chi (filter chip Chồng / Vợ)
-      const { authorFilter } = state.settings;
+      // 5. Lọc theo người chi (filter chip Chồng / Vợ)
       if (authorFilter && authorFilter !== "all" && tx.author !== authorFilter) {
         return false;
       }
@@ -264,16 +325,22 @@ const Store = (() => {
 
     const netBalance = totalIncome - totalExpense;
 
-    // Thống kê riêng cho Ví Gia Đình (cả 2 cùng xem được đóng góp của nhau)
-    let childBo = 0;
-    let childBong = 0;
+    // Thống kê riêng cho Ví Gia Đình đang chọn
+    const currentFamilyId = state.settings.currentFamilyId || "fam_main";
+    const childrenMap = {};
+    (state.settings.children || []).forEach(c => {
+      childrenMap[c.id] = 0;
+    });
+
     let husbandFamilyTotal = 0;
     let wifeFamilyTotal = 0;
 
     state.transactions.forEach(t => {
-      if (t.wallet === "family" && t.type === "expense") {
-        if (t.beneficiary === "Bo") childBo += t.amount;
-        if (t.beneficiary === "Bông") childBong += t.amount;
+      const txFamId = t.familyId || "fam_main";
+      if (t.wallet === "family" && txFamId === currentFamilyId && t.type === "expense") {
+        if (t.beneficiary && childrenMap.hasOwnProperty(t.beneficiary)) {
+          childrenMap[t.beneficiary] += t.amount;
+        }
 
         if (t.author === "husband") husbandFamilyTotal += t.amount;
         else if (t.author === "wife") wifeFamilyTotal += t.amount;
@@ -295,8 +362,9 @@ const Store = (() => {
       budget,
       budgetPercent,
       actualPercent,
-      childBo,
-      childBong,
+      childrenMap,
+      childBo: childrenMap["Bo"] || 0,
+      childBong: childrenMap["Bông"] || 0,
       husbandTotal: husbandFamilyTotal,
       wifeTotal: wifeFamilyTotal,
       husbandPercent,
@@ -355,6 +423,145 @@ const Store = (() => {
     return { labels, data };
   }
 
+  // ==================== QUẢN LÝ NHIỀU GIA ĐÌNH ====================
+  function getFamilies() {
+    return state.settings.families || [];
+  }
+
+  function getCurrentFamily() {
+    const families = getFamilies();
+    return families.find(f => f.id === state.settings.currentFamilyId) || families[0] || { id: "fam_main", name: "Gia Đình Nhỏ", vaultId: "vault_default" };
+  }
+
+  function addFamily(name, customVaultId = null) {
+    if (!name || !name.trim()) return null;
+    if (!Array.isArray(state.settings.families)) state.settings.families = [];
+
+    const id = "fam_" + Date.now().toString(36);
+    const vaultId = (customVaultId && customVaultId.trim()) ? customVaultId.trim() : ("vault_" + Math.random().toString(36).substring(2, 9));
+    const newFam = {
+      id,
+      name: name.trim(),
+      vaultId
+    };
+
+    state.settings.families.push(newFam);
+    state.settings.currentFamilyId = id;
+    state.settings.vaultId = vaultId;
+    saveSettings();
+
+    // Reconnect supabase nếu có
+    if (typeof window !== "undefined" && window.SupabaseSync && typeof window.SupabaseSync.init === "function") {
+      window.SupabaseSync.init();
+    }
+
+    return newFam;
+  }
+
+  function switchFamily(id) {
+    const fam = (state.settings.families || []).find(f => f.id === id);
+    if (fam) {
+      state.settings.currentFamilyId = fam.id;
+      state.settings.vaultId = fam.vaultId;
+      saveSettings();
+
+      if (typeof window !== "undefined" && window.SupabaseSync && typeof window.SupabaseSync.init === "function") {
+        window.SupabaseSync.init();
+      }
+      return fam;
+    }
+    return null;
+  }
+
+  function renameFamily(id, newName) {
+    if (!newName || !newName.trim()) return null;
+    const fam = (state.settings.families || []).find(f => f.id === id);
+    if (fam) {
+      fam.name = newName.trim();
+      saveSettings();
+      return fam;
+    }
+    return null;
+  }
+
+  function deleteFamily(id) {
+    if (!state.settings.families || state.settings.families.length <= 1) {
+      return false; // Phải giữ ít nhất 1 gia đình
+    }
+    state.settings.families = state.settings.families.filter(f => f.id !== id);
+    if (state.settings.currentFamilyId === id) {
+      state.settings.currentFamilyId = state.settings.families[0].id;
+      state.settings.vaultId = state.settings.families[0].vaultId;
+    }
+    saveSettings();
+
+    if (typeof window !== "undefined" && window.SupabaseSync && typeof window.SupabaseSync.init === "function") {
+      window.SupabaseSync.init();
+    }
+    return true;
+  }
+
+  // ==================== QUẢN LÝ THÀNH VIÊN (CHỒNG / VỢ) ====================
+  function getMemberName(role) {
+    const members = state.settings.members || { husband: "Chồng", wife: "Vợ" };
+    return members[role] || (role === "wife" ? "Vợ" : "Chồng");
+  }
+
+  function setMemberName(role, name) {
+    if (!state.settings.members) state.settings.members = { husband: "Chồng", wife: "Vợ" };
+    if (name && name.trim()) {
+      state.settings.members[role] = name.trim();
+      saveSettings();
+    }
+  }
+
+  // ==================== QUẢN LÝ CON CÁI (BÉ BO, BÔNG...) ====================
+  function getChildren() {
+    return state.settings.children || [];
+  }
+
+  function addChild(name, avatar = "👶", note = "") {
+    if (!name || !name.trim()) return null;
+    if (!Array.isArray(state.settings.children)) state.settings.children = [];
+
+    // Tạo ID an toàn, ngắn gọn
+    const cleanId = name.trim().replace(/\s+/g, "_");
+    const id = cleanId + "_" + Math.random().toString(36).substring(2, 5);
+
+    const newChild = {
+      id,
+      name: name.trim(),
+      avatar: avatar || "👶",
+      note: note ? note.trim() : ""
+    };
+
+    state.settings.children.push(newChild);
+    saveSettings();
+    return newChild;
+  }
+
+  function renameChild(id, newName, newAvatar, newNote) {
+    const child = (state.settings.children || []).find(c => c.id === id);
+    if (child) {
+      if (newName && newName.trim()) child.name = newName.trim();
+      if (newAvatar) child.avatar = newAvatar;
+      if (newNote !== undefined) child.note = newNote.trim();
+      saveSettings();
+      return child;
+    }
+    return null;
+  }
+
+  function deleteChild(id) {
+    if (!state.settings.children) return false;
+    state.settings.children = state.settings.children.filter(c => c.id !== id);
+    if (state.settings.childFilter === id) {
+      state.settings.childFilter = "all";
+    }
+    saveSettings();
+    return true;
+  }
+
   function formatMoney(amount) {
     if (isNaN(amount) || amount === null) return "0 ₫";
     return Math.round(amount).toLocaleString("vi-VN") + " ₫";
@@ -371,7 +578,21 @@ const Store = (() => {
     getCategoryBreakdown,
     getDailyExpenseTrend,
     formatMoney,
-    saveSettings
+    saveSettings,
+    // Multi-family methods
+    getFamilies,
+    getCurrentFamily,
+    addFamily,
+    switchFamily,
+    renameFamily,
+    deleteFamily,
+    // Custom Member & Children methods
+    getMemberName,
+    setMemberName,
+    getChildren,
+    addChild,
+    renameChild,
+    deleteChild
   };
 })();
 

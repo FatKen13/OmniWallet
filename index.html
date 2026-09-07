@@ -30,7 +30,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.3">
+  <link rel="stylesheet" href="style.css?v=1.4">
 </head>
 <body>
 
@@ -45,7 +45,11 @@
         </div>
         <div>
           <h1 class="brand-title">OmniWallet</h1>
-          <span class="brand-subtitle" id="vault-status-indicator">Ví Offline An Toàn</span>
+          <button class="header-family-badge" id="btn-header-family" title="Bấm để đổi gia đình hoặc thành viên">
+            <span class="fam-emoji">🏡</span>
+            <span class="fam-name" id="header-fam-name">Gia Đình Nhỏ</span>
+            <i class="fa-solid fa-chevron-down fam-chevron"></i>
+          </button>
         </div>
       </div>
 
@@ -54,6 +58,11 @@
         <button class="author-badge-btn" id="btn-toggle-author" title="Đổi người chi">
           <span id="author-icon">👨</span>
           <span id="author-name">Chồng</span>
+        </button>
+
+        <!-- Quản lý Gia Đình & Thành Viên -->
+        <button class="icon-circle-btn" id="btn-open-family-modal" title="Quản lý Gia Đình & Thành Viên">
+          <i class="fa-solid fa-users-gear"></i>
         </button>
 
         <!-- Share Magic Link -->
@@ -204,50 +213,29 @@
 
       <!-- Card 4: Children Expense Dossier & Comparison -->
       <div class="analytics-card" id="children-analytics-card">
-        <h3 class="card-title"><i class="fa-solid fa-children"></i> Chi Phí Nuôi Con (Bé Bo vs Bé Bông)</h3>
-        <div class="children-grid">
-          <div class="child-card">
-            <div class="child-card-header">
-              <span class="child-avatar">👦</span>
-              <div>
-                <h4>Bé Bo</h4>
-                <small>Học tập, đồ dùng</small>
-              </div>
-            </div>
-            <div class="child-amount" id="child-amount-bo">0 ₫</div>
-          </div>
-
-          <div class="child-card">
-            <div class="child-card-header">
-              <span class="child-avatar">👧</span>
-              <div>
-                <h4>Bé Bông</h4>
-                <small>Mầm non, bỉm sữa</small>
-              </div>
-            </div>
-            <div class="child-amount" id="child-amount-bong">0 ₫</div>
-          </div>
+        <h3 class="card-title" id="children-analytics-title"><i class="fa-solid fa-children"></i> Chi Phí Nuôi Con</h3>
+        <div class="children-grid" id="children-analytics-grid">
+          <!-- Populated dynamically by JS -->
         </div>
-        <!-- Thanh so sánh tỷ trọng chi cho 2 con -->
+        <!-- Thanh so sánh tỷ trọng chi cho các con -->
         <div class="children-bar-box" id="children-bar-box" style="margin-top: 0.85rem;">
-          <div class="spouses-bar">
-            <div class="spouses-segment" id="child-bar-bo" style="background: #6366f1; width: 50%;">Bo: 50%</div>
-            <div class="spouses-segment" id="child-bar-bong" style="background: #ec4899; width: 50%;">Bông: 50%</div>
+          <div class="spouses-bar" id="children-spouses-bar">
+            <!-- Populated dynamically by JS -->
           </div>
         </div>
       </div>
 
       <!-- Card 5: Spouses Comparison Card -->
       <div class="analytics-card">
-        <h3 class="card-title"><i class="fa-solid fa-scale-balanced"></i> Đóng Góp Chi Tiêu (Chồng vs Vợ)</h3>
+        <h3 class="card-title" id="spouse-comparison-title"><i class="fa-solid fa-scale-balanced"></i> Đóng Góp Chi Tiêu (Chồng vs Vợ)</h3>
         <div class="spouses-bar-box">
           <div class="spouses-bar">
             <div class="spouses-segment husband" id="spouse-bar-husband" style="width: 50%;">50%</div>
             <div class="spouses-segment wife" id="spouse-bar-wife" style="width: 50%;">50%</div>
           </div>
           <div class="spouses-legend">
-            <span><i class="fa-solid fa-circle" style="color: #6366f1;"></i> Chồng: <strong id="spouse-val-husband">0 ₫</strong></span>
-            <span><i class="fa-solid fa-circle" style="color: #ec4899;"></i> Vợ: <strong id="spouse-val-wife">0 ₫</strong></span>
+            <span><i class="fa-solid fa-circle" style="color: #6366f1;"></i> <span id="spouse-label-husband">Chồng</span>: <strong id="spouse-val-husband">0 ₫</strong></span>
+            <span><i class="fa-solid fa-circle" style="color: #ec4899;"></i> <span id="spouse-label-wife">Vợ</span>: <strong id="spouse-val-wife">0 ₫</strong></span>
           </div>
         </div>
       </div>
@@ -464,14 +452,151 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL 4: QUẢN LÝ GIA ĐÌNH & THÀNH VIÊN ==================== -->
+  <div class="modal-overlay" id="family-modal-overlay">
+    <div class="bottom-sheet family-sheet" id="family-sheet">
+      <div class="sheet-drag-handle"></div>
+
+      <div class="sheet-header">
+        <div class="sheet-title-box">
+          <h3 class="sheet-title">Quản Lý Gia Đình & Thành Viên</h3>
+          <span class="sheet-subtitle">Đổi gia đình, đổi tên vợ/chồng & quản lý các con</span>
+        </div>
+        <button class="sheet-close-btn" id="btn-close-family-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Segmented Sub-tabs -->
+      <div class="family-tab-nav">
+        <button class="fam-tab-btn active" id="tab-btn-families" data-tab="families">
+          <i class="fa-solid fa-house-chimney"></i> Gia Đình Khác
+        </button>
+        <button class="fam-tab-btn" id="tab-btn-members" data-tab="members">
+          <i class="fa-solid fa-user-pen"></i> Đổi Tên & Con Cái
+        </button>
+      </div>
+
+      <div class="family-modal-body">
+
+        <!-- TAB 1: DANH SÁCH GIA ĐÌNH & THÊM GIA ĐÌNH MỚI -->
+        <div class="fam-tab-pane active" id="pane-families">
+          <div class="fam-info-banner">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>Mỗi gia đình có quỹ chi tiêu & mã đồng bộ riêng biệt. Bạn có thể chuyển đổi linh hoạt bất cứ lúc nào!</span>
+          </div>
+
+          <!-- Danh sách gia đình hiện có -->
+          <div class="section-sub-header">
+            <h4>Gia Đình Của Bạn</h4>
+            <span class="badge-count" id="family-count-badge">1 gia đình</span>
+          </div>
+
+          <div class="family-list-container" id="family-list-container">
+            <!-- Populated dynamically by JS -->
+          </div>
+
+          <!-- Card: Tạo gia đình mới -->
+          <div class="family-action-card">
+            <h4><i class="fa-solid fa-plus-circle"></i> Thêm Gia Đình Mới</h4>
+            <p class="card-desc">Tạo thêm gia đình (ví dụ: Nhà Nội, Nhà Ngoại, Nhóm Bạn...) để quản lý chi tiêu độc lập.</p>
+            <div class="input-with-btn-row">
+              <input type="text" id="input-new-family-name" class="sheet-text-input" placeholder="Tên gia đình (VD: Nhà Ngoại, Nhà Nội...)">
+              <button class="primary-btn-sm" id="btn-create-family">
+                <i class="fa-solid fa-plus"></i> Tạo Mới
+              </button>
+            </div>
+          </div>
+
+          <!-- Card: Tham gia gia đình bằng mã ví -->
+          <div class="family-action-card secondary">
+            <h4><i class="fa-solid fa-key"></i> Tham Gia Gia Đình Bằng Mã Ví</h4>
+            <p class="card-desc">Nếu người thân đã gửi mã Vault ID qua Zalo, hãy dán mã vào đây để tham gia cùng.</p>
+            <div class="input-col-group">
+              <input type="text" id="input-join-vault-id" class="sheet-text-input" placeholder="Mã Vault ID (VD: vault_abc123...)">
+              <input type="text" id="input-join-family-name" class="sheet-text-input" placeholder="Tên gợi nhớ (VD: Gia Đình Nhà Ngoại)">
+              <button class="outline-btn-sm" id="btn-join-family">
+                <i class="fa-solid fa-link"></i> Tham Gia Ngay
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: ĐỔI TÊN THÀNH VIÊN & QUẢN LÝ CON CÁI -->
+        <div class="fam-tab-pane" id="pane-members" style="display: none;">
+          
+          <!-- Phần 1: Đổi tên Vợ & Chồng -->
+          <div class="family-action-card">
+            <h4><i class="fa-solid fa-user-gear"></i> Đổi Tên Hai Trụ Cột Gia Đình</h4>
+            <p class="card-desc">Tùy biến cách xưng hô hiển thị trên toàn bộ ứng dụng và Trợ lý AI.</p>
+            
+            <div class="members-rename-grid">
+              <div class="member-rename-field">
+                <label><span class="role-icon">👨</span> Thành viên 1 (Chồng / Bố)</label>
+                <input type="text" id="input-rename-husband" class="sheet-text-input" placeholder="VD: Anh Tuấn, Ba...">
+              </div>
+              <div class="member-rename-field">
+                <label><span class="role-icon">👩</span> Thành viên 2 (Vợ / Mẹ)</label>
+                <input type="text" id="input-rename-wife" class="sheet-text-input" placeholder="VD: Chị Mai, Mẹ...">
+              </div>
+            </div>
+
+            <button class="primary-btn-sm full-width" id="btn-save-member-names" style="margin-top: 0.75rem;">
+              <i class="fa-solid fa-floppy-disk"></i> Lưu Tên Thành Viên
+            </button>
+          </div>
+
+          <!-- Phần 2: Quản lý con cái -->
+          <div class="family-action-card">
+            <div class="section-sub-header" style="margin-bottom: 0.5rem;">
+              <h4><i class="fa-solid fa-children"></i> Danh Sách Con Cái (Các Bé)</h4>
+              <span class="badge-count" id="children-count-badge">2 bé</span>
+            </div>
+            <p class="card-desc">Thêm hoặc đổi tên các con để theo dõi chi tiêu học phí, bỉm sữa, sức khỏe chính xác.</p>
+
+            <div class="children-manage-list" id="children-manage-list">
+              <!-- Populated dynamically by JS -->
+            </div>
+
+            <!-- Form thêm bé mới -->
+            <div class="add-child-box">
+              <h5>+ Thêm Bé Mới Vào Gia Đình</h5>
+              
+              <div class="avatar-picker-row" id="avatar-picker-row">
+                <button type="button" class="avatar-pick-btn active" data-emoji="👦">👦</button>
+                <button type="button" class="avatar-pick-btn" data-emoji="👧">👧</button>
+                <button type="button" class="avatar-pick-btn" data-emoji="👶">👶</button>
+                <button type="button" class="avatar-pick-btn" data-emoji="🧒">🧒</button>
+                <button type="button" class="avatar-pick-btn" data-emoji="🧑">🧑</button>
+                <button type="button" class="avatar-pick-btn" data-emoji="🍼">🍼</button>
+                <button type="button" class="avatar-pick-btn" data-emoji="🐣">🐣</button>
+                <button type="button" class="avatar-pick-btn" data-emoji="⭐">⭐</button>
+              </div>
+
+              <div class="input-col-group" style="margin-top: 0.5rem;">
+                <input type="text" id="input-new-child-name" class="sheet-text-input" placeholder="Tên bé (VD: Bé Bin, Bé Na, Bé Bắp...)">
+                <input type="text" id="input-new-child-note" class="sheet-text-input" placeholder="Ghi chú (VD: Lớp 1, Tiền học, Bỉm sữa...)">
+                <button class="primary-btn-sm" id="btn-add-child">
+                  <i class="fa-solid fa-user-plus"></i> Thêm Bé Vào Gia Đình
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
   <!-- Toast Notification Box -->
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JavaScript Modules -->
-  <script src="js/store.js?v=1.3"></script>
-  <script src="js/ai.js?v=1.3"></script>
-  <script src="js/supabase.js?v=1.3"></script>
-  <script src="js/app.js?v=1.3"></script>
+  <script src="js/store.js?v=1.4"></script>
+  <script src="js/ai.js?v=1.4"></script>
+  <script src="js/supabase.js?v=1.4"></script>
+  <script src="js/app.js?v=1.4"></script>
 
 </body>
 </html>
