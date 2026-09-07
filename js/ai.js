@@ -424,6 +424,19 @@ const AIAssistant = (() => {
   // Phân tích câu nói bằng Offline Engine (Hỗ trợ đa giao dịch trong 1 câu)
   function parseNaturalTextOffline(promptText) {
     const cleanPrompt = promptText.trim();
+    const lowerPrompt = cleanPrompt.toLowerCase();
+
+    // 0. Kiểm tra lệnh đặt ngân sách (VD: "đặt ngân sách tháng này 10tr", "cài ngân sách 15 triệu")
+    if (lowerPrompt.includes("ngân sách") && (lowerPrompt.includes("đặt") || lowerPrompt.includes("cài") || lowerPrompt.includes("set") || lowerPrompt.includes("chỉnh") || lowerPrompt.includes("thay"))) {
+      const parsedAmt = parseAmount(lowerPrompt);
+      if (parsedAmt && parsedAmt.val > 0) {
+        return {
+          isCommand: true,
+          isBudgetCommand: true,
+          budgetAmount: parsedAmt.val
+        };
+      }
+    }
 
     // 1. Kiểm tra xem có phải câu ghép nhiều giao dịch không (ngăn cách bởi "và", "với", "rồi", "sau đó", ",")
     const segments = cleanPrompt.split(/\s*(?:và|với|rồi|sau đó|\+|,)\s*/i);
@@ -460,6 +473,17 @@ const AIAssistant = (() => {
   function answerQueryOffline(query) {
     const q = query.toLowerCase();
     const summary = Store.getFinancialSummary();
+
+    // 0. Hỏi về ngân sách
+    if (q.includes("ngân sách")) {
+      const budget = summary.budget;
+      if (!budget || budget === 0) {
+        return "🎯 Bạn hiện **chưa đặt ngân sách** chi tiêu tháng này. Bạn có thể bấm trực tiếp vào khung *Ngân sách tháng* trên màn hình chính hoặc gõ *'đặt ngân sách tháng này 10 triệu'* để cài đặt nhé!";
+      }
+      const remain = budget - summary.totalExpense;
+      const pct = summary.actualPercent;
+      return `🎯 **Tình hình ngân sách tháng này:**\n• Hạn mức ngân sách: **${Store.formatMoney(budget)}**\n• Đã chi: **${Store.formatMoney(summary.totalExpense)}** (${pct}%)\n• Số tiền còn lại: **${Store.formatMoney(remain)}** ${remain < 0 ? '⚠️ *(Đang vượt ngân sách!)*' : '✅ *(Còn an toàn)*'}`;
+    }
     const now = new Date();
     const todayStr = now.toISOString().split("T")[0];
 

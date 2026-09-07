@@ -387,8 +387,9 @@ const Store = (() => {
     const husbandPercent = totalFamily > 0 ? Math.round((husbandFamilyTotal / totalFamily) * 100) : 0;
     const wifePercent = totalFamily > 0 ? (100 - husbandPercent) : 0;
 
-    const budget = state.settings.monthlyBudget || 15000000;
-    const budgetPercent = Math.min(100, Math.round((totalExpense / budget) * 100));
+    const ym = getCurrentYearMonth();
+    const budget = getBudgetForMonth(ym);
+    const budgetPercent = budget > 0 ? Math.min(100, Math.round((totalExpense / budget) * 100)) : 0;
     const actualPercent = budget > 0 ? Math.round((totalExpense / budget) * 100) : 0;
 
     return {
@@ -632,6 +633,33 @@ const Store = (() => {
     return Math.round(amount).toLocaleString("vi-VN") + " ₫";
   }
 
+  function getCurrentYearMonth() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+  }
+
+  function getBudgetForMonth(yearMonth) {
+    const ym = yearMonth || getCurrentYearMonth();
+    if (state.settings.monthlyBudgets && state.settings.monthlyBudgets[ym] !== undefined) {
+      return Number(state.settings.monthlyBudgets[ym]);
+    }
+    return state.settings.monthlyBudget !== undefined ? Number(state.settings.monthlyBudget) : 15000000;
+  }
+
+  function setBudgetForMonth(amount, yearMonth) {
+    const ym = yearMonth || getCurrentYearMonth();
+    if (!state.settings.monthlyBudgets || typeof state.settings.monthlyBudgets !== "object") {
+      state.settings.monthlyBudgets = {};
+    }
+    const val = Math.max(0, parseInt(amount) || 0);
+    state.settings.monthlyBudgets[ym] = val;
+    state.settings.monthlyBudget = val;
+    saveSettings();
+    return val;
+  }
+
   return {
     init,
     state,
@@ -644,6 +672,10 @@ const Store = (() => {
     getDailyExpenseTrend,
     formatMoney,
     saveSettings,
+    // Budget methods
+    getCurrentYearMonth,
+    getBudgetForMonth,
+    setBudgetForMonth,
     // Multi-family methods
     getFamilies,
     getCurrentFamily,

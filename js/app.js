@@ -262,20 +262,60 @@ document.addEventListener("DOMContentLoaded", () => {
       displayBalance.textContent = "•••••••• ₫";
       displayIncome.textContent = "+•••••• ₫";
       displayExpense.textContent = "-•••••• ₫";
-      budgetText.textContent = `${summary.budgetPercent}% (Đang ẩn)`;
+      budgetText.textContent = summary.budget > 0 ? `${summary.budgetPercent}% (Đang ẩn)` : "Chưa đặt ngân sách";
     } else {
       displayBalance.textContent = Store.formatMoney(summary.netBalance);
       displayIncome.textContent = "+" + Store.formatMoney(summary.totalIncome);
       displayExpense.textContent = "-" + Store.formatMoney(summary.totalExpense);
-      budgetText.textContent = `${summary.actualPercent || summary.budgetPercent}% (${Store.formatMoney(summary.totalExpense)} / ${Store.formatMoney(summary.budget)})`;
+      if (summary.budget > 0) {
+        budgetText.textContent = `${summary.actualPercent || summary.budgetPercent}% (${Store.formatMoney(summary.totalExpense)} / ${Store.formatMoney(summary.budget)})`;
+      } else {
+        budgetText.textContent = `Chưa đặt (Bấm để cài đặt)`;
+      }
     }
 
-    budgetBar.style.width = summary.budgetPercent + "%";
-    if (summary.budgetPercent > 90) {
-      budgetBar.style.background = "linear-gradient(90deg, #f59e0b, #ef4444)";
+    if (summary.budget > 0) {
+      budgetBar.style.display = "block";
+      budgetBar.style.width = summary.budgetPercent + "%";
+      if (summary.budgetPercent > 90) {
+        budgetBar.style.background = "linear-gradient(90deg, #f59e0b, #ef4444)";
+      } else {
+        budgetBar.style.background = "linear-gradient(90deg, #10b981, #f59e0b)";
+      }
     } else {
-      budgetBar.style.background = "linear-gradient(90deg, #10b981, #f59e0b)";
+      budgetBar.style.width = "0%";
     }
+  }
+
+  // Cho phép người dùng bấm trực tiếp vào Ngân sách tháng để cài đặt
+  const budgetBox = document.getElementById("budget-box");
+  if (budgetBox) {
+    budgetBox.addEventListener("click", () => {
+      const curBudget = Store.getBudgetForMonth();
+      const promptVal = prompt(
+        `Cài đặt ngân sách chi tiêu cho tháng này:\n(Nhập số tiền bằng VNĐ, ví dụ: 10tr, 15000000, hoặc nhập 0 để tắt ngân sách)`,
+        curBudget > 0 ? curBudget : "15000000"
+      );
+      if (promptVal !== null && promptVal.trim() !== "") {
+        const raw = promptVal.trim();
+        let val = 0;
+        if (/tr|m/i.test(raw)) {
+          val = parseFloat(raw.replace(/[^\d.]/g, "")) * 1000000;
+        } else if (/k/i.test(raw)) {
+          val = parseFloat(raw.replace(/[^\d.]/g, "")) * 1000;
+        } else {
+          val = parseInt(raw.replace(/[.,\sđ₫]/g, "")) || 0;
+        }
+
+        Store.setBudgetForMonth(val);
+        renderBalance();
+        if (val > 0) {
+          showToast(`Đã đặt ngân sách tháng này là ${Store.formatMoney(val)}!`, "fa-bullseye");
+        } else {
+          showToast("Đã tắt ngân sách tháng!", "fa-circle-info");
+        }
+      }
+    });
   }
 
   function formatTxDateGroup(dateStr) {
@@ -872,6 +912,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const parsed = AIAssistant.parseNaturalTextOffline(prompt);
 
     if (parsed.isCommand) {
+      // Trường hợp đặt ngân sách bằng AI
+      if (parsed.isBudgetCommand) {
+        Store.setBudgetForMonth(parsed.budgetAmount);
+        renderAll();
+        appendAIMsg("bot", `🎯 Đã cập nhật ngân sách chi tiêu tháng này là **${Store.formatMoney(parsed.budgetAmount)}** thành công!`);
+        showToast(`Đã đặt ngân sách: ${Store.formatMoney(parsed.budgetAmount)}`, "fa-bullseye");
+        return;
+      }
+
       // Trường hợp 1: Nhận diện nhiều giao dịch trong 1 câu (VD: "ăn trưa 50k và đổ xăng 80k")
       if (parsed.isMultiple && parsed.dataList && parsed.dataList.length > 0) {
         let totalAmt = 0;

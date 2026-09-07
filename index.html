@@ -30,7 +30,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.9">
+  <link rel="stylesheet" href="style.css?v=2.0">
 </head>
 <body>
 
@@ -127,9 +127,9 @@
       </div>
 
       <!-- Budget Progress Bar -->
-      <div class="budget-box" id="budget-box">
+      <div class="budget-box" id="budget-box" title="Bấm vào để cài đặt hoặc đổi ngân sách tháng này" style="cursor: pointer;">
         <div class="budget-info">
-          <span>Ngân sách tháng</span>
+          <span><i class="fa-solid fa-bullseye"></i> Ngân sách tháng <i class="fa-regular fa-pen-to-square" style="font-size: 0.75rem; opacity: 0.7; margin-left: 4px;"></i></span>
           <span id="budget-text">0% (0 ₫ / 15.000.000 ₫)</span>
         </div>
         <div class="budget-progress-track">
@@ -593,10 +593,10 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JavaScript Modules -->
-  <script src="js/store.js?v=1.9"></script>
-  <script src="js/ai.js?v=1.9"></script>
-  <script src="js/supabase.js?v=1.9"></script>
-  <script src="js/app.js?v=1.9"></script>
+  <script src="js/store.js?v=2.0"></script>
+  <script src="js/ai.js?v=2.0"></script>
+  <script src="js/supabase.js?v=2.0"></script>
+  <script src="js/app.js?v=2.0"></script>
 
 </body>
 </html>
