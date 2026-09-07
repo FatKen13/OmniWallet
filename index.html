@@ -30,7 +30,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.5">
+  <link rel="stylesheet" href="style.css?v=1.6">
 </head>
 <body>
 
@@ -547,8 +547,8 @@
           <!-- Phần 2: Quản lý con cái -->
           <div class="family-action-card">
             <div class="section-sub-header" style="margin-bottom: 0.5rem;">
-              <h4><i class="fa-solid fa-children"></i> Danh Sách Con Cái (Các Bé)</h4>
-              <span class="badge-count" id="children-count-badge">2 bé</span>
+              <h4><i class="fa-solid fa-children"></i> Danh Sách Con Cái</h4>
+              <span class="badge-count" id="children-count-badge">2</span>
             </div>
             <p class="card-desc">Thêm hoặc đổi tên các con để theo dõi chi tiêu học phí, bỉm sữa, sức khỏe chính xác.</p>
 
@@ -556,9 +556,9 @@
               <!-- Populated dynamically by JS -->
             </div>
 
-            <!-- Form thêm bé mới -->
+            <!-- Form thêm con mới -->
             <div class="add-child-box">
-              <h5>+ Thêm Bé Mới Vào Gia Đình</h5>
+              <h5>+ Thêm Con Mới Vào Gia Đình</h5>
               
               <div class="avatar-picker-row" id="avatar-picker-row">
                 <button type="button" class="avatar-pick-btn active" data-emoji="👦">👦</button>
@@ -572,10 +572,10 @@
               </div>
 
               <div class="input-col-group" style="margin-top: 0.5rem;">
-                <input type="text" id="input-new-child-name" class="sheet-text-input" placeholder="Tên bé (VD: Bé Bin, Bé Na, Bé Bắp...)">
+                <input type="text" id="input-new-child-name" class="sheet-text-input" placeholder="Tên (VD: Vừng, Bo, Bông, Bin...)">
                 <input type="text" id="input-new-child-note" class="sheet-text-input" placeholder="Ghi chú (VD: Lớp 1, Tiền học, Bỉm sữa...)">
                 <button class="primary-btn-sm" id="btn-add-child">
-                  <i class="fa-solid fa-user-plus"></i> Thêm Bé Vào Gia Đình
+                  <i class="fa-solid fa-user-plus"></i> Thêm Vào Gia Đình
                 </button>
               </div>
             </div>
@@ -593,10 +593,10 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JavaScript Modules -->
-  <script src="js/store.js?v=1.5"></script>
-  <script src="js/ai.js?v=1.5"></script>
-  <script src="js/supabase.js?v=1.5"></script>
-  <script src="js/app.js?v=1.5"></script>
+  <script src="js/store.js?v=1.6"></script>
+  <script src="js/ai.js?v=1.6"></script>
+  <script src="js/supabase.js?v=1.6"></script>
+  <script src="js/app.js?v=1.6"></script>
 
 </body>
 </html>

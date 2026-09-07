@@ -612,10 +612,9 @@ const Store = (() => {
     const children = getChildren();
     const child = children.find(c => c.id === beneficiary || c.name === beneficiary || (c.id && c.id.toLowerCase() === beneficiary.toLowerCase()) || (c.name && c.name.toLowerCase() === beneficiary.toLowerCase()));
     if (child) {
-      const name = child.name;
-      return name.toLowerCase().startsWith("bé ") ? name : `Bé ${name}`;
+      return child.name;
     }
-    return beneficiary.toLowerCase().startsWith("bé ") ? beneficiary : `Bé ${beneficiary}`;
+    return beneficiary;
   }
 
   function deleteChild(id) {

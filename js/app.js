@@ -1260,10 +1260,10 @@ document.addEventListener("DOMContentLoaded", () => {
       list.innerHTML = "";
 
       const children = Store.getChildren();
-      if (badge) badge.textContent = `${children.length} bé`;
+      if (badge) badge.textContent = `${children.length}`;
 
       if (children.length === 0) {
-        list.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem 0;">Chưa có bé nào. Hãy thêm bé ở bên dưới!</div>`;
+        list.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem 0;">Chưa có thành viên con nào. Hãy thêm ở bên dưới!</div>`;
         return;
       }
 
@@ -1292,14 +1292,14 @@ document.addEventListener("DOMContentLoaded", () => {
           const id = btn.getAttribute("data-id");
           const child = children.find(c => c.id === id);
           if (!child) return;
-          const newName = prompt(`Nhập tên mới cho bé "${child.name}":`, child.name);
+          const newName = prompt(`Nhập tên mới cho "${child.name}":`, child.name);
           if (newName && newName.trim()) {
-            const newNote = prompt(`Nhập ghi chú cho bé "${newName.trim()}":`, child.note || "");
+            const newNote = prompt(`Nhập ghi chú cho "${newName.trim()}":`, child.note || "");
             Store.renameChild(id, newName.trim(), child.avatar, newNote !== null ? newNote : child.note);
             renderChildrenManageList();
             renderDynamicUI();
             renderAll();
-            showToast(`Đã cập nhật thông tin bé "${newName.trim()}"!`);
+            showToast(`Đã cập nhật thông tin "${newName.trim()}"!`);
           }
         });
       });
@@ -1310,12 +1310,12 @@ document.addEventListener("DOMContentLoaded", () => {
           const id = btn.getAttribute("data-id");
           const child = children.find(c => c.id === id);
           if (!child) return;
-          if (confirm(`Bạn có chắc muốn xóa bé "${child.name}" khỏi danh sách?`)) {
+          if (confirm(`Bạn có chắc muốn xóa "${child.name}" khỏi danh sách?`)) {
             Store.deleteChild(id);
             renderChildrenManageList();
             renderDynamicUI();
             renderAll();
-            showToast(`Đã xóa bé "${child.name}"`, "fa-trash");
+            showToast(`Đã xóa "${child.name}"`, "fa-trash");
           }
         });
       });
@@ -1339,7 +1339,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const note = inNote ? inNote.value.trim() : "";
 
       if (!name) {
-        alert("Vui lòng nhập tên bé (VD: Bé Bin, Bé Na, Bé Bơ...)");
+        alert("Vui lòng nhập tên (VD: Vừng, Bo, Bông...)");
         inName?.focus();
         return;
       }
@@ -1350,7 +1350,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderChildrenManageList();
       renderDynamicUI();
       renderAll();
-      showToast(`Đã thêm bé "${name}" vào gia đình!`, "fa-child");
+      showToast(`Đã thêm "${name}" vào gia đình!`, "fa-child");
     });
   }
 
