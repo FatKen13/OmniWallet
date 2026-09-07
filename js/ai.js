@@ -71,9 +71,11 @@ const AIAssistant = (() => {
     { 
       id: "health", 
       words: [
-        "thuốc", "bệnh viện", "bác sĩ", "khám", "nha khoa", "răng", "vitamin", 
-        "khám bệnh", "long châu", "an khang", "pharmacity", "panadol", "kháng sinh", 
-        "nhỏ mắt", "khám mắt", "tai mũi họng", "nội soi", "xét nghiệm"
+        "thuốc tây", "nhà thuốc", "hiệu thuốc", "tiệm thuốc", "mua thuốc", "tiền thuốc", 
+        "uống thuốc", "toa thuốc", "đơn thuốc", "thuốc bổ", "thuốc cảm", "thuốc ho", 
+        "thuốc sốt", "thuốc đau", "thuốc trị", "bệnh viện", "bác sĩ", "khám", "nha khoa", 
+        "răng", "vitamin", "khám bệnh", "long châu", "an khang", "pharmacity", "panadol", 
+        "paracetamol", "kháng sinh", "nhỏ mắt", "khám mắt", "tai mũi họng", "nội soi", "xét nghiệm"
       ] 
     },
     { 
@@ -286,9 +288,49 @@ const AIAssistant = (() => {
       }
     }
 
+    // ==================== BỘ LỌC TỪ ĐỒNG ÂM & NGỮ CẢNH DỄ NHẦM LẪN ====================
+    // 1. Thuốc lá, vape, pod -> Tiêu vặt cá nhân (TUYỆT ĐỐI KHÔNG PHẢI Y TẾ)
+    const isTobacco = 
+      text.includes("thuốc lá") || text.includes("thuoc la") || text.includes("thuốc lào") || 
+      text.includes("bao thuốc") || text.includes("gói thuốc") || text.includes("hút thuốc") || 
+      text.includes("điếu thuốc") || text.includes("cây thuốc") || text.includes("vape") || text.includes("pod") ||
+      text.includes("thăng long") || text.includes("marlboro") || text.includes("555") || text.includes("craven");
+
+    // 2. Thuốc làm đẹp (nhuộm, uốn, ép) -> Mua sắm (KHÔNG PHẢI Y TẾ)
+    const isHairDye = text.includes("thuốc nhuộm") || text.includes("thuốc ép") || text.includes("thuốc uốn") || text.includes("tẩy tóc");
+
+    // 3. Đồ uống giải khát chứa từ "sữa", "nước" -> Ăn uống (KHÔNG PHẢI BỈM SỮA CON VÀ KHÔNG PHẢI HÓA ĐƠN NƯỚC)
+    const isBeverage = 
+      text.includes("trà sữa") || text.includes("cà phê sữa") || text.includes("cafe sữa") || 
+      text.includes("sữa chua") || text.includes("sữa tươi") || text.includes("nước ngọt") || 
+      text.includes("nước suối") || text.includes("nước mía") || text.includes("nước ép") || 
+      text.includes("nước dừa") || text.includes("nước đá") || text.includes("nước sâm") ||
+      text.includes("sinh tố") || text.includes("bánh sữa") || text.includes("kẹo sữa");
+
+    // 4. Nước giặt / tẩy rửa gia đình -> Đi chợ / Siêu thị (KHÔNG PHẢI HÓA ĐƠN NƯỚC)
+    const isHouseholdCleaning = 
+      text.includes("nước giặt") || text.includes("nước xả") || text.includes("nước rửa chén") || 
+      text.includes("nước rửa bát") || text.includes("nước lau nhà") || text.includes("nước tẩy");
+
+    // 5. Nước hoa / mỹ phẩm làm đẹp -> Mua sắm (KHÔNG PHẢI HÓA ĐƠN NƯỚC)
+    const isCosmetics = 
+      text.includes("nước hoa") || text.includes("nước tẩy trang") || text.includes("nước hoa hồng") || text.includes("xịt khoáng");
+
+    // 6. Vệ sinh cá nhân (kem đánh răng, bàn chải) -> Đi chợ / Tiêu dùng (KHÔNG PHẢI NHA KHOA / Y TẾ)
+    const isOralCare = 
+      text.includes("kem đánh răng") || text.includes("bàn chải") || text.includes("chỉ nha khoa") || text.includes("nước súc miệng");
+
+    // 7. Kính râm / kính mát / kính thời trang -> Mua sắm (KHÔNG PHẢI KHÁM MẮT / Y TẾ)
+    const isSunglasses = 
+      text.includes("kính râm") || text.includes("kính mát") || text.includes("kính thời trang");
+
+    // 8. Vé xem phim -> Giải trí (KHÔNG PHẢI VÉ XE / DI CHUYỂN)
+    const isCinemaTicket = 
+      text.includes("vé xem phim") || text.includes("vé rạp") || text.includes("vé cgv") || text.includes("vé lotte") || text.includes("bắp rang");
+
     // Nhận diện ví (Cá nhân hay Gia đình)
     let wallet = "family";
-    if (text.includes("cá nhân") || text.includes("tiêu vặt") || text.includes("riêng")) {
+    if (text.includes("cá nhân") || text.includes("tiêu vặt") || text.includes("riêng") || isTobacco) {
       if ((myRole === "husband" && text.includes("vợ")) || (myRole === "wife" && text.includes("chồng"))) {
         wallet = "family";
       } else {
@@ -297,8 +339,16 @@ const AIAssistant = (() => {
     } else if (text.includes("gia đình") || text.includes("cả nhà") || text.includes("quỹ chung")) {
       wallet = "family";
     } else {
-      // Tự động: Học tập, con cái, bỉm sữa, chợ búa, điện nước -> GIA ĐÌNH. Còn lại cafe, ăn sáng -> CÁ NHÂN
-      if (beneficiary !== "none" || text.includes("điện") || text.includes("nước") || text.includes("chợ") || text.includes("học") || text.includes("sữa") || text.includes("bỉm") || text.includes("siêu thị")) {
+      // Tự động: Học tập, con cái, bỉm sữa, chợ búa, điện nước -> GIA ĐÌNH. Còn lại cafe, ăn sáng, tiêu vặt -> CÁ NHÂN
+      const isFamilyExpense = 
+        beneficiary !== "none" ||
+        text.includes("tiền điện") || text.includes("tiền nước") || text.includes("hóa đơn") ||
+        text.includes("tiền mạng") || text.includes("tiền wifi") || text.includes("tiền nhà") ||
+        text.includes("tiền rác") || text.includes("chợ") || text.includes("siêu thị") ||
+        text.includes("bỉm") || isHouseholdCleaning || isOralCare ||
+        (!isBeverage && (text.includes("sữa bột") || text.includes("sữa nan") || text.includes("sữa meiji") || text.includes("tiền học")));
+
+      if (isFamilyExpense && !isTobacco && !isBeverage) {
         wallet = "family";
       } else {
         wallet = "personal";
@@ -313,12 +363,30 @@ const AIAssistant = (() => {
 
     // Nhận diện danh mục
     let category = "other";
-    for (const rule of CATEGORY_RULES) {
-      if (rule.words.some(w => text.includes(w))) {
-        category = rule.id;
-        break;
+    if (isTobacco) {
+      category = "other"; // Thuốc lá là chi tiêu khác / tiêu vặt cá nhân
+    } else if (isHairDye || isCosmetics || isSunglasses) {
+      category = "shopping";
+    } else if (isBeverage) {
+      category = "food";
+    } else if (isHouseholdCleaning || isOralCare) {
+      category = "market";
+    } else if (isCinemaTicket) {
+      category = "entertainment";
+    } else {
+      for (const rule of CATEGORY_RULES) {
+        if (rule.words.some(w => text.includes(w))) {
+          category = rule.id;
+          break;
+        }
+      }
+
+      // Nếu có chữ "thuốc" hoặc "viên thuốc" đơn lẻ mà không phải thuốc lá / thuốc nhuộm -> Y tế
+      if (category === "other" && (text.includes("thuốc") || text.includes("viên thuốc") || text.includes("vỉ thuốc"))) {
+        category = "health";
       }
     }
+
     if (beneficiary !== "none" && category === "other") {
       const childObj = Store.getChildren().find(c => c.id === beneficiary || c.name === beneficiary);
       if (childObj && childObj.note && (childObj.note.toLowerCase().includes("học") || childObj.note.toLowerCase().includes("trường"))) {
