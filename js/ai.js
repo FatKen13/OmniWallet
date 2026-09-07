@@ -233,19 +233,31 @@ const AIAssistant = (() => {
     let beneficiary = "none";
     const allChildren = Store.getChildren();
     for (const child of allChildren) {
-      const cName = (child.name || "").toLowerCase();
-      const cId = (child.id || "").toLowerCase();
-      if (text.includes("cho " + cName) || text.includes("của " + cName) || text.includes("bé " + cName) ||
-          text.includes("cho " + cId) || text.includes("của " + cId) || text.includes(cName)) {
+      const cName = (child.name || "").toLowerCase().trim();
+      const cId = (child.id || "").toLowerCase().trim();
+      const shortName = cName.replace(/^(bé|con)\s+/i, "").trim();
+
+      const isMatch = 
+        (shortName && (
+          text.includes("cho " + shortName) ||
+          text.includes("của " + shortName) ||
+          text.includes("bé " + shortName) ||
+          text.includes("với " + shortName) ||
+          text.includes("cùng " + shortName) ||
+          text.includes("cho con " + shortName) ||
+          text.includes(shortName)
+        )) ||
+        text.includes("cho " + cName) ||
+        text.includes("của " + cName) ||
+        text.includes("bé " + cName) ||
+        text.includes("với " + cName) ||
+        text.includes("cùng " + cName) ||
+        text.includes(cName) ||
+        (cId && (text.includes("cho " + cId) || text.includes("của " + cId) || text.includes("với " + cId) || text.includes(cId)));
+
+      if (isMatch) {
         beneficiary = child.id;
         break;
-      }
-    }
-    if (beneficiary === "none") {
-      if (text.includes("cho bo") || text.includes("của bo") || text.includes("bé bo") || text.includes("con trai")) {
-        beneficiary = "Bo";
-      } else if (text.includes("cho bông") || text.includes("của bông") || text.includes("bé bông") || text.includes("con gái")) {
-        beneficiary = "Bông";
       }
     }
 
@@ -283,7 +295,12 @@ const AIAssistant = (() => {
       }
     }
     if (beneficiary !== "none" && category === "other") {
-      category = (beneficiary === "Bo") ? "education" : "baby";
+      const childObj = Store.getChildren().find(c => c.id === beneficiary || c.name === beneficiary);
+      if (childObj && childObj.note && (childObj.note.toLowerCase().includes("học") || childObj.note.toLowerCase().includes("trường"))) {
+        category = "education";
+      } else {
+        category = "baby";
+      }
     }
 
     // Nhận diện ngày giờ giao dịch tự nhiên

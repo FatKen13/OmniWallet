@@ -114,6 +114,37 @@ const Store = (() => {
         state.transactions = getInitialSeedData(state.settings.activeAuthor);
         save();
       }
+
+      // Tự động đồng bộ ID và giao dịch nếu tên con cái đã được đổi (VD: id là 'Bo' nhưng tên là 'Vừng')
+      if (Array.isArray(state.settings.children)) {
+        let changed = false;
+        state.settings.children.forEach(c => {
+          if (c.id === "Bo" && c.name && !c.name.toLowerCase().includes("bo")) {
+            const cleanId = c.name.replace(/^(Bé|bé|con)\s+/i, "").trim().replace(/\s+/g, "_") || c.name;
+            const oldId = c.id;
+            c.id = cleanId;
+            state.transactions.forEach(t => {
+              if (t.beneficiary === oldId) t.beneficiary = cleanId;
+            });
+            if (state.settings.childFilter === oldId) state.settings.childFilter = cleanId;
+            changed = true;
+          }
+          if (c.id === "Bông" && c.name && !c.name.toLowerCase().includes("bông") && !c.name.toLowerCase().includes("bong")) {
+            const cleanId = c.name.replace(/^(Bé|bé|con)\s+/i, "").trim().replace(/\s+/g, "_") || c.name;
+            const oldId = c.id;
+            c.id = cleanId;
+            state.transactions.forEach(t => {
+              if (t.beneficiary === oldId) t.beneficiary = cleanId;
+            });
+            if (state.settings.childFilter === oldId) state.settings.childFilter = cleanId;
+            changed = true;
+          }
+        });
+        if (changed) {
+          save();
+          saveSettings();
+        }
+      }
     } catch (e) {
       console.warn("Store init error:", e);
     }
@@ -338,8 +369,13 @@ const Store = (() => {
     state.transactions.forEach(t => {
       const txFamId = t.familyId || "fam_main";
       if (t.wallet === "family" && txFamId === currentFamilyId && t.type === "expense") {
-        if (t.beneficiary && childrenMap.hasOwnProperty(t.beneficiary)) {
-          childrenMap[t.beneficiary] += t.amount;
+        if (t.beneficiary && t.beneficiary !== "none") {
+          const matchedChild = (state.settings.children || []).find(c => c.id === t.beneficiary || c.name === t.beneficiary);
+          if (matchedChild && childrenMap.hasOwnProperty(matchedChild.id)) {
+            childrenMap[matchedChild.id] += t.amount;
+          } else if (childrenMap.hasOwnProperty(t.beneficiary)) {
+            childrenMap[t.beneficiary] += t.amount;
+          }
         }
 
         if (t.author === "husband") husbandFamilyTotal += t.amount;
@@ -541,20 +577,50 @@ const Store = (() => {
   }
 
   function renameChild(id, newName, newAvatar, newNote) {
-    const child = (state.settings.children || []).find(c => c.id === id);
+    const child = (state.settings.children || []).find(c => c.id === id || c.name === id);
     if (child) {
-      if (newName && newName.trim()) child.name = newName.trim();
+      const oldId = child.id;
+      const cleanName = newName ? newName.trim() : child.name;
+      const cleanId = cleanName.replace(/^(Bé|bé|con)\s+/i, "").trim().replace(/\s+/g, "_") || cleanName;
+
+      child.name = cleanName;
+      child.id = cleanId;
       if (newAvatar) child.avatar = newAvatar;
       if (newNote !== undefined) child.note = newNote.trim();
+
+      // Cập nhật tất cả các giao dịch cũ có beneficiary là oldId sang cleanId
+      if (oldId !== cleanId) {
+        state.transactions.forEach(t => {
+          if (t.beneficiary === oldId) {
+            t.beneficiary = cleanId;
+          }
+        });
+        if (state.settings.childFilter === oldId) {
+          state.settings.childFilter = cleanId;
+        }
+        save();
+      }
+
       saveSettings();
       return child;
     }
     return null;
   }
 
+  function getChildDisplayName(beneficiary) {
+    if (!beneficiary || beneficiary === "none") return "";
+    const children = getChildren();
+    const child = children.find(c => c.id === beneficiary || c.name === beneficiary || (c.id && c.id.toLowerCase() === beneficiary.toLowerCase()) || (c.name && c.name.toLowerCase() === beneficiary.toLowerCase()));
+    if (child) {
+      const name = child.name;
+      return name.toLowerCase().startsWith("bé ") ? name : `Bé ${name}`;
+    }
+    return beneficiary.toLowerCase().startsWith("bé ") ? beneficiary : `Bé ${beneficiary}`;
+  }
+
   function deleteChild(id) {
     if (!state.settings.children) return false;
-    state.settings.children = state.settings.children.filter(c => c.id !== id);
+    state.settings.children = state.settings.children.filter(c => c.id !== id && c.name !== id);
     if (state.settings.childFilter === id) {
       state.settings.childFilter = "all";
     }
@@ -590,6 +656,7 @@ const Store = (() => {
     getMemberName,
     setMemberName,
     getChildren,
+    getChildDisplayName,
     addChild,
     renameChild,
     deleteChild

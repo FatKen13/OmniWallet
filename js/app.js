@@ -347,8 +347,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let childBadge = "";
       if (t.beneficiary && t.beneficiary !== "none") {
-        const foundChild = Store.getChildren().find(c => c.id === t.beneficiary);
-        const childLabel = foundChild ? `${foundChild.avatar} ${foundChild.name}` : `Bé ${t.beneficiary}`;
+        const foundChild = Store.getChildren().find(c => 
+          c.id === t.beneficiary || 
+          c.name === t.beneficiary ||
+          (c.id && c.id.toLowerCase() === t.beneficiary.toLowerCase()) ||
+          (c.name && c.name.toLowerCase() === t.beneficiary.toLowerCase())
+        );
+        const childLabel = foundChild ? `${foundChild.avatar || "👶"} ${foundChild.name}` : Store.getChildDisplayName(t.beneficiary);
         childBadge = `<span class="tx-badge child">${childLabel}</span>`;
       }
 
@@ -875,9 +880,11 @@ document.addEventListener("DOMContentLoaded", () => {
         parsed.dataList.forEach((d, idx) => {
           totalAmt += d.amount;
           const cat = Store.CATEGORIES.find(c => c.id === d.category) || { emoji: "✨", name: d.category };
-          const authorName = d.author === "wife" ? "👩 Vợ" : "👨 Chồng";
+          const authorMember = Store.getMemberName(d.author);
+          const authorName = d.author === "wife" ? `👩 ${authorMember}` : `👨 ${authorMember}`;
           const walletName = d.wallet === "family" ? "Gia Đình" : "Cá Nhân";
-          const childText = d.beneficiary !== "none" ? ` (Bé ${d.beneficiary})` : "";
+          const childDisplayName = Store.getChildDisplayName(d.beneficiary);
+          const childText = childDisplayName ? ` (${childDisplayName})` : "";
 
           listHtml += `
             <div class="ai-multi-item">
@@ -907,15 +914,17 @@ document.addEventListener("DOMContentLoaded", () => {
       if (parsed.data) {
         const d = parsed.data;
         const cat = Store.CATEGORIES.find(c => c.id === d.category) || { emoji: "✨", name: d.category };
-        const authorName = d.author === "wife" ? "Vợ" : "Chồng";
+        const authorMember = Store.getMemberName(d.author);
+        const authorName = d.author === "wife" ? `👩 ${authorMember}` : `👨 ${authorMember}`;
         const walletName = d.wallet === "family" ? "Gia Đình" : "Cá Nhân";
-        const childText = d.beneficiary !== "none" ? `(Bé ${d.beneficiary})` : "";
+        const childDisplayName = Store.getChildDisplayName(d.beneficiary);
+        const childText = childDisplayName ? ` (${childDisplayName})` : "";
 
         const confirmHtml = `
           Tôi đã nhận diện giao dịch này:
           <div class="ai-confirm-card">
             <strong>Số tiền: ${Store.formatMoney(d.amount)}</strong>
-            <span>Danh mục: ${cat.emoji} ${cat.name} ${childText}</span>
+            <span>Danh mục: ${cat.emoji} ${cat.name}${childText}</span>
             <span>Người chi: ${authorName} • Ví: ${walletName}</span>
             <span>Ghi chú: "${d.note}"</span>
             <button class="btn-confirm-ai" id="btn-save-ai-parsed">Xác Nhận & Lưu Ngay</button>
