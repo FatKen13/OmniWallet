@@ -230,7 +230,10 @@ const AIAssistant = (() => {
       author = "husband";
     }
 
-    // Nhận diện con cái (Tự động quét danh sách bé trong Store)
+    // Nhận diện con cái (Tự động quét danh sách con trong Store)
+    // Quy tắc thông minh:
+    // - Đi cùng ("với Vừng", "cùng Vừng", "ăn sáng với Vừng", "cafe với Vừng"): Là bạn đồng hành, chi phí ăn uống là của người chi (Ví Cá Nhân), KHÔNG gán beneficiary là con!
+    // - Chi phí cho con ("cho Vừng", "của Vừng", "tiền học Vừng", "sữa Vừng", "cho con Vừng"): ĐÚNG là chi phí nuôi con -> gán beneficiary = child.id!
     let beneficiary = "none";
     const allChildren = Store.getChildren();
     for (const child of allChildren) {
@@ -238,25 +241,46 @@ const AIAssistant = (() => {
       const cId = (child.id || "").toLowerCase().trim();
       const shortName = cName.replace(/^(bé|con)\s+/i, "").trim();
 
-      const isMatch = 
-        (shortName && (
-          text.includes("cho " + shortName) ||
-          text.includes("của " + shortName) ||
-          text.includes("bé " + shortName) ||
-          text.includes("với " + shortName) ||
-          text.includes("cùng " + shortName) ||
-          text.includes("cho con " + shortName) ||
-          text.includes(shortName)
-        )) ||
-        text.includes("cho " + cName) ||
-        text.includes("của " + cName) ||
-        text.includes("bé " + cName) ||
-        text.includes("với " + cName) ||
-        text.includes("cùng " + cName) ||
-        text.includes(cName) ||
-        (cId && (text.includes("cho " + cId) || text.includes("của " + cId) || text.includes("với " + cId) || text.includes(cId)));
+      // Kiểm tra nếu là cụm đi cùng ("với...", "cùng...") -> Bỏ qua, không gán là chi phí cho con
+      const isCompanion = 
+        (shortName && (text.includes("với " + shortName) || text.includes("cùng " + shortName))) ||
+        (cName && (text.includes("với " + cName) || text.includes("cùng " + cName))) ||
+        (cId && (text.includes("với " + cId) || text.includes("cùng " + cId)));
 
-      if (isMatch) {
+      if (isCompanion) {
+        continue;
+      }
+
+      // Các mẫu chi phí thực sự DÀNH CHO con
+      const childTargets = [shortName, cName, cId].filter(Boolean);
+      let isDedicatedChildExpense = false;
+
+      for (const tgt of childTargets) {
+        if (
+          text.includes("cho " + tgt) ||
+          text.includes("của " + tgt) ||
+          text.includes("cho con " + tgt) ||
+          text.includes("cho bé " + tgt) ||
+          text.includes("của con " + tgt) ||
+          text.includes("của bé " + tgt) ||
+          text.includes("học phí " + tgt) ||
+          text.includes("tiền học " + tgt) ||
+          text.includes("sữa " + tgt) ||
+          text.includes("bỉm " + tgt) ||
+          text.includes("đồ chơi " + tgt) ||
+          text.includes("sách " + tgt) ||
+          text.includes("mua đồ " + tgt)
+        ) {
+          isDedicatedChildExpense = true;
+          break;
+        }
+      }
+
+      if (!isDedicatedChildExpense && cName.startsWith("bé ") && text.includes(cName)) {
+        isDedicatedChildExpense = true;
+      }
+
+      if (isDedicatedChildExpense) {
         beneficiary = child.id;
         break;
       }
