@@ -78,6 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateAuthorUI();
   setupSyncModal();
   setupFamilyModal();
+  setupPeriodControls();
 
   // 2. Chuyển đổi Ví (Cá Nhân / Gia Đình / Tổng Hợp)
   walletTabBtns.forEach(btn => {
@@ -440,6 +441,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderAnalytics() {
     const summary = Store.getFinancialSummary();
+    const period = summary.period || Store.getPeriod();
+
+    // 0. Cập nhật Thẻ Bộ Lọc Kỳ Báo Cáo
+    const periodLabelEl = document.getElementById("period-display-label");
+    if (periodLabelEl) {
+      periodLabelEl.textContent = period.label;
+    }
+
+    const periodNavRow = document.getElementById("period-nav-row");
+    if (periodNavRow) {
+      periodNavRow.style.display = period.mode === "all" ? "none" : "flex";
+    }
+
+    const periodTabBtns = document.querySelectorAll(".period-tab-btn");
+    periodTabBtns.forEach(btn => {
+      const mode = btn.getAttribute("data-period-mode");
+      if (mode === period.mode) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+
+    const syncTimelineCheck = document.getElementById("sync-period-timeline");
+    if (syncTimelineCheck) {
+      syncTimelineCheck.checked = period.syncTimeline;
+    }
+
+    // Cập nhật tiêu đề biểu đồ xu hướng
+    const trendTitle = document.getElementById("trend-chart-title");
+    if (trendTitle) {
+      if (period.mode === "year") {
+        trendTitle.innerHTML = `<i class="fa-solid fa-chart-column"></i> Xu Hướng Chi Tiêu 12 Tháng (${period.year})`;
+      } else if (period.mode === "month") {
+        trendTitle.innerHTML = `<i class="fa-solid fa-chart-column"></i> Xu Hướng Chi Tiêu (${period.label})`;
+      } else {
+        trendTitle.innerHTML = `<i class="fa-solid fa-chart-column"></i> Xu Hướng Chi Tiêu (Toàn Bộ)`;
+      }
+    }
 
     // 1. Cập nhật Thẻ Dòng Tiền & Tỷ Lệ Tích Lũy
     const cfRatioText = document.getElementById("cf-ratio-text");
@@ -564,8 +604,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // 4. Cập nhật Chart.js
     if (typeof Chart === "undefined") return;
 
-    // A. Biểu đồ Cột Xu Hướng 7 Ngày Gần Nhất
-    const dailyData = Store.getDailyExpenseTrend(7);
+    // A. Biểu đồ Cột Xu Hướng (Tháng / Năm)
+    const trendData = Store.getDailyExpenseTrend(7);
     const dailyCtx = document.getElementById("dailyTrendChart");
     if (dailyCtx) {
       if (dailyTrendChart) {
@@ -573,16 +613,17 @@ document.addEventListener("DOMContentLoaded", () => {
         dailyTrendChart = null;
       }
       try {
+        const isYearly = !!trendData.isYearly;
         dailyTrendChart = new Chart(dailyCtx, {
           type: "bar",
           data: {
-            labels: dailyData.labels,
+            labels: trendData.labels,
             datasets: [{
-              label: "Chi tiêu",
-              data: dailyData.data,
-              backgroundColor: "rgba(99, 102, 241, 0.75)",
+              label: isYearly ? "Chi tiêu tháng" : "Chi tiêu",
+              data: trendData.data,
+              backgroundColor: isYearly ? "rgba(99, 102, 241, 0.85)" : "rgba(99, 102, 241, 0.75)",
               hoverBackgroundColor: "#6366f1",
-              borderRadius: 6,
+              borderRadius: isYearly ? 8 : (trendData.labels.length > 20 ? 3 : 6),
               borderSkipped: false
             }]
           },
@@ -600,7 +641,12 @@ document.addEventListener("DOMContentLoaded", () => {
             scales: {
               x: {
                 grid: { display: false },
-                ticks: { color: "#94a3b8", font: { family: "Plus Jakarta Sans", size: 11 } }
+                ticks: { 
+                  color: "#94a3b8", 
+                  font: { family: "Plus Jakarta Sans", size: 10 },
+                  maxTicksLimit: isYearly ? 12 : (trendData.labels.length > 20 ? 10 : undefined),
+                  maxRotation: 0
+                }
               },
               y: {
                 grid: { color: "rgba(255, 255, 255, 0.05)" },
@@ -655,6 +701,59 @@ document.addEventListener("DOMContentLoaded", () => {
           console.warn("Chart creation error:", e);
         }
       }
+    }
+  }
+
+  // Cài đặt bộ chọn kỳ báo cáo (Tháng / Năm / Tất Cả)
+  function setupPeriodControls() {
+    const periodTabBtns = document.querySelectorAll(".period-tab-btn");
+    const btnPeriodPrev = document.getElementById("btn-period-prev");
+    const btnPeriodNext = document.getElementById("btn-period-next");
+    const btnPeriodNow = document.getElementById("btn-period-now");
+    const syncPeriodCheck = document.getElementById("sync-period-timeline");
+
+    periodTabBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const mode = btn.getAttribute("data-period-mode");
+        Store.setPeriod(mode);
+        renderAnalytics();
+        renderBalance();
+        renderTransactions();
+      });
+    });
+
+    if (btnPeriodPrev) {
+      btnPeriodPrev.addEventListener("click", () => {
+        Store.shiftPeriod(-1);
+        renderAnalytics();
+        renderBalance();
+        renderTransactions();
+      });
+    }
+
+    if (btnPeriodNext) {
+      btnPeriodNext.addEventListener("click", () => {
+        Store.shiftPeriod(1);
+        renderAnalytics();
+        renderBalance();
+        renderTransactions();
+      });
+    }
+
+    if (btnPeriodNow) {
+      btnPeriodNow.addEventListener("click", () => {
+        Store.resetPeriodToCurrent();
+        renderAnalytics();
+        renderBalance();
+        renderTransactions();
+      });
+    }
+
+    if (syncPeriodCheck) {
+      syncPeriodCheck.addEventListener("change", (e) => {
+        Store.setSyncPeriodTimeline(e.target.checked);
+        renderTransactions();
+      });
     }
   }
 

@@ -473,6 +473,136 @@ const AIAssistant = (() => {
   function answerQueryOffline(query) {
     const q = query.toLowerCase();
     const summary = Store.getFinancialSummary();
+    const now = new Date();
+
+    // 0A. Hỏi cách xem báo cáo theo năm / theo tháng
+    if (q.includes("xem báo cáo") || q.includes("báo cáo theo") || (q.includes("báo cáo") && (q.includes("như nào") || q.includes("ở đâu") || q.includes("làm sao") || q.includes("cách")))) {
+      return `📊 **Hướng dẫn xem Báo Cáo theo Tháng và theo Năm trong OmniWallet:**
+
+1️⃣ **Mở Báo Cáo:** Bấm vào nút **'Báo Cáo'** (kế bên nút Trợ Lý AI trên màn hình chính).
+2️⃣ **Chọn Chế Độ:**
+   • **Theo Tháng:** Xem dòng tiền, tỷ lệ tích lũy và chi tiêu các ngày trong tháng.
+   • **Theo Năm:** Biểu đồ tự động chuyển thành **12 tháng (T1 ➔ T12)** giúp bạn so sánh tổng chi giữa các tháng!
+   • **Tất Cả:** Xem toàn bộ từ trước đến nay.
+3️⃣ **Chuyển Tháng / Năm:** Dùng 2 nút mũi tên **◀** và **▶** để lùi/tiến từng tháng hoặc năm. Bấm **'Hiện tại'** để quay về thời điểm này.
+4️⃣ **Tùy chọn lọc:** Đánh dấu tích **'Lọc danh sách'** nếu bạn muốn danh sách lịch sử giao dịch bên dưới cũng chỉ hiển thị các khoản của tháng/năm đó.
+
+💬 *Mẹo: Bạn cũng có thể hỏi trực tiếp tôi bất cứ lúc nào, ví dụ: "Báo cáo tháng 9", "Báo cáo năm 2026", "Tháng trước tiêu bao nhiêu"...*`;
+    }
+
+    // 0B. Hỏi báo cáo chi tiết theo năm cụ thể
+    const yearMatch = q.match(/(?:báo cáo|chi tiêu|tổng kết|tiêu hết bao nhiêu|tiêu bao nhiêu)\s+(?:cả\s+)?năm\s*(\d{4})/i) || 
+                      q.match(/năm\s*(\d{4})\s+(?:tiêu|chi|hết|báo cáo)/i) ||
+                      ((q.includes("năm nay") || q.includes("năm ngoái")) && (q.includes("báo cáo") || q.includes("tiêu") || q.includes("chi")));
+    if (yearMatch || (q.startsWith("năm ") && q.length <= 15)) {
+      let targetYear = now.getFullYear();
+      if (q.includes("năm ngoái")) {
+        targetYear = now.getFullYear() - 1;
+      } else {
+        const mYear = q.match(/\d{4}/);
+        if (mYear) targetYear = parseInt(mYear[0], 10);
+      }
+
+      const pSummary = Store.getFinancialSummary({ periodMode: "year", periodYear: targetYear });
+      const pBreakdown = Store.getCategoryBreakdown({ periodMode: "year", periodYear: targetYear });
+
+      let rep = `📅 **BÁO CÁO TÀI CHÍNH NĂM ${targetYear}:**\n`;
+      rep += `• 💰 **Tổng Thu:** +${Store.formatMoney(pSummary.totalIncome)}\n`;
+      rep += `• 💸 **Tổng Chi:** -${Store.formatMoney(pSummary.totalExpense)}\n`;
+      rep += `• 📈 **Số dư tích lũy:** ${Store.formatMoney(pSummary.netBalance)}\n`;
+
+      if (pBreakdown.labels.length > 0) {
+        rep += `\n🛍️ **Top danh mục chi tiêu lớn nhất:**\n`;
+        for (let i = 0; i < Math.min(3, pBreakdown.labels.length); i++) {
+          const pct = pSummary.totalExpense > 0 ? Math.round((pBreakdown.data[i] / pSummary.totalExpense) * 100) : 0;
+          rep += `• ${pBreakdown.labels[i]}: **${Store.formatMoney(pBreakdown.data[i])}** (${pct}%)\n`;
+        }
+      }
+
+      const childrenList = Store.getChildren();
+      if (childrenList.length > 0) {
+        rep += `\n👶 **Chi phí cho con cả năm:**\n`;
+        childrenList.forEach(c => {
+          const amt = (pSummary.childrenMap && pSummary.childrenMap[c.id]) || 0;
+          rep += `• ${c.avatar || "👶"} ${c.name}: **${Store.formatMoney(amt)}**\n`;
+        });
+      }
+
+      if (pSummary.totalFamily > 0) {
+        const hName = Store.getMemberName("husband");
+        const wName = Store.getMemberName("wife");
+        rep += `\n⚖️ **Đóng góp Ví Gia Đình cả năm:**\n`;
+        rep += `• 👨 ${hName}: ${Store.formatMoney(pSummary.husbandTotal)} (${pSummary.husbandPercent}%)\n`;
+        rep += `• 👩 ${wName}: ${Store.formatMoney(pSummary.wifeTotal)} (${pSummary.wifePercent}%)\n`;
+      }
+
+      rep += `\n💡 *Gợi ý: Bạn có thể bấm nút **Báo Cáo** trên màn hình chính và chọn tab **Theo Năm** để xem biểu đồ cột 12 tháng (T1 - T12) nhé!*`;
+      return rep;
+    }
+
+    // 0C. Hỏi báo cáo chi tiết theo tháng cụ thể
+    const monthMatch = q.match(/(?:báo cáo|chi tiêu|tổng kết|tiêu hết bao nhiêu|tiêu bao nhiêu)\s+(?:cả\s+)?tháng\s*(\d{1,2})(?:[\/\-](\d{4}))?/i) ||
+                       q.match(/tháng\s*(\d{1,2})(?:[\/\-](\d{4}))?\s+(?:tiêu|chi|hết|báo cáo)/i) ||
+                       ((q.includes("tháng này") || q.includes("tháng trước")) && (q.includes("báo cáo") || q.includes("tiêu") || q.includes("chi")));
+    if (monthMatch || (q.startsWith("tháng ") && q.length <= 15)) {
+      let targetMonth = now.getMonth() + 1;
+      let targetYear = now.getFullYear();
+
+      if (q.includes("tháng trước")) {
+        targetMonth = now.getMonth();
+        if (targetMonth === 0) {
+          targetMonth = 12;
+          targetYear -= 1;
+        }
+      } else {
+        const mNum = q.match(/tháng\s*(\d{1,2})(?:[\/\-](\d{4}))?/i);
+        if (mNum) {
+          targetMonth = parseInt(mNum[1], 10);
+          if (mNum[2]) targetYear = parseInt(mNum[2], 10);
+        }
+      }
+
+      const pSummary = Store.getFinancialSummary({ periodMode: "month", periodYear: targetYear, periodMonth: targetMonth });
+      const pBreakdown = Store.getCategoryBreakdown({ periodMode: "month", periodYear: targetYear, periodMonth: targetMonth });
+      const mStr = String(targetMonth).padStart(2, "0");
+
+      let rep = `📅 **BÁO CÁO TÀI CHÍNH THÁNG ${mStr}/${targetYear}:**\n`;
+      rep += `• 💰 **Tổng Thu:** +${Store.formatMoney(pSummary.totalIncome)}\n`;
+      rep += `• 💸 **Tổng Chi:** -${Store.formatMoney(pSummary.totalExpense)}\n`;
+      rep += `• 📈 **Số dư tích lũy:** ${Store.formatMoney(pSummary.netBalance)}\n`;
+
+      if (pSummary.budget > 0) {
+        rep += `• 🎯 **Ngân sách:** ${Store.formatMoney(pSummary.totalExpense)} / ${Store.formatMoney(pSummary.budget)} (${pSummary.actualPercent}%)\n`;
+      }
+
+      if (pBreakdown.labels.length > 0) {
+        rep += `\n🛍️ **Top danh mục chi nhiều nhất:**\n`;
+        for (let i = 0; i < Math.min(3, pBreakdown.labels.length); i++) {
+          const pct = pSummary.totalExpense > 0 ? Math.round((pBreakdown.data[i] / pSummary.totalExpense) * 100) : 0;
+          rep += `• ${pBreakdown.labels[i]}: **${Store.formatMoney(pBreakdown.data[i])}** (${pct}%)\n`;
+        }
+      }
+
+      const childrenList = Store.getChildren();
+      if (childrenList.length > 0) {
+        rep += `\n👶 **Chi phí cho con:**\n`;
+        childrenList.forEach(c => {
+          const amt = (pSummary.childrenMap && pSummary.childrenMap[c.id]) || 0;
+          rep += `• ${c.avatar || "👶"} ${c.name}: **${Store.formatMoney(amt)}**\n`;
+        });
+      }
+
+      if (pSummary.totalFamily > 0) {
+        const hName = Store.getMemberName("husband");
+        const wName = Store.getMemberName("wife");
+        rep += `\n⚖️ **Đóng góp Ví Gia Đình:**\n`;
+        rep += `• 👨 ${hName}: ${Store.formatMoney(pSummary.husbandTotal)} (${pSummary.husbandPercent}%)\n`;
+        rep += `• 👩 ${wName}: ${Store.formatMoney(pSummary.wifeTotal)} (${pSummary.wifePercent}%)\n`;
+      }
+
+      rep += `\n💡 *Gợi ý: Bấm nút **Báo Cáo** trên màn hình chính và chuyển sang Tháng ${mStr}/${targetYear} để xem biểu đồ chi tiết từng ngày nhé!*`;
+      return rep;
+    }
 
     // 0. Hỏi về ngân sách
     if (q.includes("ngân sách")) {
@@ -484,7 +614,6 @@ const AIAssistant = (() => {
       const pct = summary.actualPercent;
       return `🎯 **Tình hình ngân sách tháng này:**\n• Hạn mức ngân sách: **${Store.formatMoney(budget)}**\n• Đã chi: **${Store.formatMoney(summary.totalExpense)}** (${pct}%)\n• Số tiền còn lại: **${Store.formatMoney(remain)}** ${remain < 0 ? '⚠️ *(Đang vượt ngân sách!)*' : '✅ *(Còn an toàn)*'}`;
     }
-    const now = new Date();
     const todayStr = now.toISOString().split("T")[0];
 
     const yesterday = new Date(now);

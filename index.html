@@ -30,7 +30,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=2.0">
+  <link rel="stylesheet" href="style.css?v=2.1">
 </head>
 <body>
 
@@ -174,6 +174,45 @@
     <!-- Analytics Section (Collapsible) -->
     <section class="analytics-view" id="analytics-view" style="display: none;">
 
+      <!-- Card 0: Bộ Lọc Kỳ Báo Cáo (Tháng / Năm / Tất Cả) -->
+      <div class="analytics-card period-card">
+        <div class="period-card-top">
+          <div class="period-tabs">
+            <button class="period-tab-btn active" data-period-mode="month">
+              <i class="fa-regular fa-calendar"></i> Theo Tháng
+            </button>
+            <button class="period-tab-btn" data-period-mode="year">
+              <i class="fa-solid fa-calendar-days"></i> Theo Năm
+            </button>
+            <button class="period-tab-btn" data-period-mode="all">
+              <i class="fa-solid fa-infinity"></i> Tất Cả
+            </button>
+          </div>
+          <div class="period-sync-box">
+            <label class="period-sync-label" title="Đồng bộ kỳ báo cáo này vào danh sách lịch sử giao dịch bên dưới">
+              <input type="checkbox" id="sync-period-timeline" checked>
+              <span>Lọc danh sách</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="period-nav-row" id="period-nav-row">
+          <button class="period-nav-btn" id="btn-period-prev" title="Kỳ trước">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <div class="period-current-badge" id="period-current-display">
+            <i class="fa-regular fa-calendar-check"></i>
+            <span id="period-display-label">Tháng 09/2026</span>
+          </div>
+          <button class="period-nav-btn" id="btn-period-next" title="Kỳ sau">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          <button class="period-today-btn" id="btn-period-now" title="Về thời điểm hiện tại">
+            Hiện tại
+          </button>
+        </div>
+      </div>
+
       <!-- Card 1: Dòng Tiền & Tỷ Lệ Tiết Kiệm (Cash Flow & Financial Health) -->
       <div class="analytics-card">
         <div class="card-header-flex">
@@ -195,9 +234,9 @@
         </div>
       </div>
 
-      <!-- Card 2: Xu Hướng Chi Tiêu 7 Ngày Gần Nhất (Daily Trend Bar Chart) -->
+      <!-- Card 2: Xu Hướng Chi Tiêu (Bar Chart theo Tháng hoặc Năm) -->
       <div class="analytics-card">
-        <h3 class="card-title"><i class="fa-solid fa-chart-column"></i> Xu Hướng Chi Tiêu 7 Ngày Qua</h3>
+        <h3 class="card-title" id="trend-chart-title"><i class="fa-solid fa-chart-column"></i> Xu Hướng Chi Tiêu</h3>
         <div class="chart-container" style="height: 180px;">
           <canvas id="dailyTrendChart"></canvas>
         </div>
@@ -593,10 +632,10 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JavaScript Modules -->
-  <script src="js/store.js?v=2.0"></script>
-  <script src="js/ai.js?v=2.0"></script>
-  <script src="js/supabase.js?v=2.0"></script>
-  <script src="js/app.js?v=2.0"></script>
+  <script src="js/store.js?v=2.1"></script>
+  <script src="js/ai.js?v=2.1"></script>
+  <script src="js/supabase.js?v=2.1"></script>
+  <script src="js/app.js?v=2.1"></script>
 
 </body>
 </html>
