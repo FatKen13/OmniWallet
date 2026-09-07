@@ -288,33 +288,106 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Cho phép người dùng bấm trực tiếp vào Ngân sách tháng để cài đặt
+  // Hàm tự động định dạng phân tách hàng nghìn bằng dấu chấm (VD: 1.000.000) và giữ con trỏ chuột
+  function attachNumberFormatting(inputEl) {
+    if (!inputEl) return;
+    inputEl.addEventListener("input", () => {
+      const rawVal = inputEl.value;
+      const oldCursor = inputEl.selectionEnd || rawVal.length;
+      const digitsBeforeCursor = rawVal.slice(0, oldCursor).replace(/\D/g, "").length;
+
+      const clean = rawVal.replace(/\D/g, "");
+      if (!clean) {
+        inputEl.value = "";
+        return;
+      }
+
+      const formatted = Store.formatNumber(clean);
+      inputEl.value = formatted;
+
+      // Tính lại vị trí con trỏ sau khi format
+      let newCursor = 0;
+      let digitCount = 0;
+      for (let i = 0; i < formatted.length; i++) {
+        if (/\d/.test(formatted[i])) {
+          digitCount++;
+        }
+        if (digitCount === digitsBeforeCursor) {
+          newCursor = i + 1;
+          break;
+        }
+      }
+      if (digitCount < digitsBeforeCursor) newCursor = formatted.length;
+
+      try {
+        inputEl.setSelectionRange(newCursor, newCursor);
+      } catch (e) {}
+    });
+  }
+
+  // Cài đặt ngân sách tháng qua Modal chuyên dụng có phân tách hàng nghìn 1.000.000
   const budgetBox = document.getElementById("budget-box");
-  if (budgetBox) {
+  const budgetModalOverlay = document.getElementById("budget-modal-overlay");
+  const btnCloseBudgetModal = document.getElementById("btn-close-budget-modal");
+  const inputBudgetAmount = document.getElementById("input-budget-amount");
+  const btnSaveBudgetModal = document.getElementById("btn-save-budget-modal");
+  const budgetModalSubtitle = document.getElementById("budget-modal-subtitle");
+
+  if (inputBudgetAmount) {
+    attachNumberFormatting(inputBudgetAmount);
+  }
+
+  // Quick pills trong modal cài đặt ngân sách
+  document.querySelectorAll(".budget-quick-pill").forEach(pill => {
+    pill.addEventListener("click", () => {
+      const val = parseInt(pill.getAttribute("data-val"), 10);
+      if (inputBudgetAmount) {
+        inputBudgetAmount.value = Store.formatNumber(val);
+      }
+    });
+  });
+
+  document.getElementById("btn-disable-budget")?.addEventListener("click", () => {
+    if (inputBudgetAmount) {
+      inputBudgetAmount.value = "0";
+    }
+  });
+
+  if (budgetBox && budgetModalOverlay) {
     budgetBox.addEventListener("click", () => {
       const curBudget = Store.getBudgetForMonth();
-      const promptVal = prompt(
-        `Cài đặt ngân sách chi tiêu cho tháng này:\n(Nhập số tiền bằng VNĐ, ví dụ: 10tr, 15000000, hoặc nhập 0 để tắt ngân sách)`,
-        curBudget > 0 ? curBudget : "15000000"
-      );
-      if (promptVal !== null && promptVal.trim() !== "") {
-        const raw = promptVal.trim();
-        let val = 0;
-        if (/tr|m/i.test(raw)) {
-          val = parseFloat(raw.replace(/[^\d.]/g, "")) * 1000000;
-        } else if (/k/i.test(raw)) {
-          val = parseFloat(raw.replace(/[^\d.]/g, "")) * 1000;
-        } else {
-          val = parseInt(raw.replace(/[.,\sđ₫]/g, "")) || 0;
-        }
+      const period = Store.getPeriod();
+      if (budgetModalSubtitle) {
+        budgetModalSubtitle.textContent = `Định mức chi tiêu cho ${period.label}`;
+      }
+      if (inputBudgetAmount) {
+        inputBudgetAmount.value = curBudget > 0 ? Store.formatNumber(curBudget) : "";
+      }
+      budgetModalOverlay.classList.add("active");
+      setTimeout(() => inputBudgetAmount?.focus(), 150);
+    });
 
-        Store.setBudgetForMonth(val);
-        renderBalance();
-        if (val > 0) {
-          showToast(`Đã đặt ngân sách tháng này là ${Store.formatMoney(val)}!`, "fa-bullseye");
-        } else {
-          showToast("Đã tắt ngân sách tháng!", "fa-circle-info");
-        }
+    btnCloseBudgetModal?.addEventListener("click", () => {
+      budgetModalOverlay.classList.remove("active");
+    });
+
+    budgetModalOverlay.addEventListener("click", (e) => {
+      if (e.target === budgetModalOverlay) {
+        budgetModalOverlay.classList.remove("active");
+      }
+    });
+
+    btnSaveBudgetModal?.addEventListener("click", () => {
+      const rawVal = inputBudgetAmount ? inputBudgetAmount.value : "0";
+      const val = Store.parseNumber(rawVal);
+      Store.setBudgetForMonth(val);
+      budgetModalOverlay.classList.remove("active");
+      renderBalance();
+      renderAnalytics();
+      if (val > 0) {
+        showToast(`Đã đặt ngân sách tháng này là ${Store.formatMoney(val)}!`, "fa-bullseye");
+      } else {
+        showToast("Đã tắt ngân sách tháng!", "fa-circle-info");
       }
     });
   }
@@ -826,13 +899,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === addModalOverlay) addModalOverlay.classList.remove("active");
   });
 
-  // Quick Amount Pills (+10k, +50k...) & Clear
-  document.querySelectorAll(".num-pill").forEach(pill => {
+  // Quick Amount Pills (+10k, +50k...) in Add Expense Modal
+  document.querySelectorAll("#add-sheet .num-pill:not(.clear-pill)").forEach(pill => {
     pill.addEventListener("click", () => {
-      const addVal = parseInt(pill.getAttribute("data-val"));
+      const addVal = parseInt(pill.getAttribute("data-val"), 10);
       if (isNaN(addVal)) return;
-      const curVal = parseInt(document.getElementById("input-amount").value.replace(/[^0-9]/g, "") || "0");
-      document.getElementById("input-amount").value = (curVal + addVal).toLocaleString("vi-VN");
+      const curVal = Store.parseNumber(inputAmount.value);
+      inputAmount.value = Store.formatNumber(curVal + addVal);
     });
   });
 
@@ -840,15 +913,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const inputNote = document.getElementById("input-note");
   const btnClearAmount = document.getElementById("btn-clear-amount");
 
-  // Format số tiền tức thì khi người dùng gõ
-  inputAmount.addEventListener("input", () => {
-    const clean = inputAmount.value.replace(/[^0-9]/g, "");
-    if (!clean) {
-      inputAmount.value = "";
-      return;
-    }
-    inputAmount.value = parseInt(clean, 10).toLocaleString("vi-VN");
-  });
+  // Áp dụng định dạng phân tách hàng nghìn tự động với dấu chấm (VD: 1.000.000)
+  attachNumberFormatting(inputAmount);
 
   if (btnClearAmount) {
     btnClearAmount.addEventListener("click", () => {

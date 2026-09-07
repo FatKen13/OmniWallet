@@ -821,9 +821,31 @@ const Store = (() => {
     return true;
   }
 
+  function formatNumber(val) {
+    if (val === null || val === undefined || val === "") return "";
+    const clean = val.toString().replace(/\D/g, "");
+    if (!clean) return "";
+    const normalized = clean.replace(/^0+(?=\d)/, "");
+    return normalized.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  }
+
+  function parseNumber(val) {
+    if (val === null || val === undefined) return 0;
+    const raw = val.toString().trim();
+    if (/tr|m/i.test(raw)) {
+      return Math.round((parseFloat(raw.replace(/[^\d.]/g, "")) || 0) * 1000000);
+    }
+    if (/k/i.test(raw)) {
+      return Math.round((parseFloat(raw.replace(/[^\d.]/g, "")) || 0) * 1000);
+    }
+    return parseInt(raw.replace(/\D/g, ""), 10) || 0;
+  }
+
   function formatMoney(amount) {
     if (isNaN(amount) || amount === null) return "0 ₫";
-    return Math.round(amount).toLocaleString("vi-VN") + " ₫";
+    const rounded = Math.round(amount);
+    if (rounded === 0) return "0 ₫";
+    return formatNumber(rounded) + " ₫";
   }
 
   function getCurrentYearMonth() {
@@ -865,6 +887,8 @@ const Store = (() => {
     getDailyExpenseTrend,
     getMonthlyExpenseTrend,
     formatMoney,
+    formatNumber,
+    parseNumber,
     saveSettings,
     // Period & Report methods
     getPeriod,
