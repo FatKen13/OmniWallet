@@ -1289,7 +1289,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (tabName === "transfer") {
         const latestTransferUrl = `${baseOrigin}#import=${Store.getExportBase64()}`;
         if (syncTransferUrl) syncTransferUrl.value = latestTransferUrl;
-        drawSimpleQR(latestTransferUrl, "qr-transfer-canvas");
       } else if (tabName === "share") {
         drawSimpleQR(shareUrl, "qr-canvas");
       }
@@ -1389,9 +1388,6 @@ document.addEventListener("DOMContentLoaded", () => {
       reader.readAsText(file);
     });
 
-    // Vẽ QR mặc định cho transfer
-    drawSimpleQR(transferUrl, "qr-transfer-canvas");
-
     // Lưu cấu hình Supabase
     document.getElementById("btn-save-supabase-cfg")?.addEventListener("click", () => {
       const u = document.getElementById("cfg-supabase-url").value;
@@ -1423,15 +1419,20 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
 
+    if (!text || text.length > 900) {
+      return;
+    }
+
     // Tải mã QR thật có thể quét bằng camera điện thoại
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+      }
     };
     img.onerror = () => {
-      // Fallback nếu không có internet: vẽ pattern QR mô phỏng
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, width, height);
       ctx.fillStyle = "#0f172a";

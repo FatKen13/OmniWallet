@@ -469,20 +469,30 @@
           <div class="fam-info-banner">
             <i class="fa-solid fa-wand-magic-sparkles"></i>
             <div>
-              <strong>Nạp dữ liệu vào điện thoại trong 1 giây:</strong> Dùng camera điện thoại quét mã QR bên dưới, hoặc sao chép link gửi qua Zalo cho chính mình rồi bấm mở trên điện thoại.
+              <strong>Nạp dữ liệu vào điện thoại trong 1 giây:</strong> Bấm nút sao chép link bên dưới, gửi vào Zalo (mục <em>Cloud của tôi</em> hoặc tin nhắn) rồi bấm mở trên điện thoại!
             </div>
           </div>
 
-          <div class="qr-box">
-            <canvas id="qr-transfer-canvas" width="200" height="200"></canvas>
-            <small>Dùng camera điện thoại quét mã này để nạp dữ liệu tức thì</small>
+          <div class="transfer-action-card" style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center; margin-bottom: 1rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📲</div>
+            <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.35rem;">Link Nạp Toàn Bộ Dữ Liệu</h4>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 1rem;">
+              Đã đóng gói đầy đủ: <strong>7 khoản chi tiêu</strong> • <strong>3 con (Vừng, Sóc, Mon)</strong> • <strong>Quỹ Mine</strong>.
+            </p>
+
+            <button class="primary-btn-sm" id="btn-copy-transfer-url" style="width: 100%; padding: 0.85rem 1rem; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.6rem; background: var(--brand-gradient); color: #fff; border-radius: var(--radius-md); box-shadow: 0 4px 15px var(--glow-brand); cursor: pointer; border: none;">
+              <i class="fa-regular fa-copy"></i> Sao Chép Link Gửi Zalo Cho Bạn
+            </button>
           </div>
 
           <div class="link-copy-box">
             <input type="text" id="sync-transfer-url" readonly class="share-url-input">
-            <button class="copy-url-btn" id="btn-copy-transfer-url">
-              <i class="fa-regular fa-copy"></i> Sao chép Link
-            </button>
+          </div>
+
+          <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; margin-top: 0.75rem; padding-left: 0.25rem;">
+            <div>1️⃣ Bấm nút tím <strong>Sao Chép Link Gửi Zalo Cho Bạn</strong> ở trên.</div>
+            <div>2️⃣ Dán vào Zalo (gửi vào <em>Cloud của tôi</em> hoặc tin nhắn).</div>
+            <div>3️⃣ Mở điện thoại bấm vào link ➔ Toàn bộ giao dịch tự nạp vào điện thoại ngay lập tức!</div>
           </div>
         </div>
 
