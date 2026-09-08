@@ -80,6 +80,12 @@ document.addEventListener("DOMContentLoaded", () => {
   setupFamilyModal();
   setupPeriodControls();
 
+  if (window._omniwallet_imported_from_url) {
+    setTimeout(() => {
+      showToast("🎉 Đã chuyển toàn bộ dữ liệu sang điện thoại thành công!", "fa-circle-check");
+    }, 500);
+  }
+
   // 2. Chuyển đổi Ví (Cá Nhân / Gia Đình / Tổng Hợp)
   walletTabBtns.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1236,27 +1242,155 @@ document.addEventListener("DOMContentLoaded", () => {
     btnVoiceInput.style.display = "none";
   }
 
-  // ==================== SYNC MODAL & MAGIC LINK ====================
+  // ==================== SYNC MODAL, MOBILE DATA TRANSFER & BACKUP ====================
   function setupSyncModal() {
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    const GITHUB_URL = "https://fatken13.github.io/OmniWallet/";
+    const baseOrigin = isLocal ? GITHUB_URL : `${window.location.origin}${window.location.pathname}`;
+
     const curFam = Store.getCurrentFamily();
     const vaultId = curFam.vaultId || Store.state.settings.vaultId || "family";
-    const shareUrl = `${window.location.origin}${window.location.pathname}#vault=${vaultId}&role=wife&fam=${encodeURIComponent(curFam.name)}`;
-    syncShareUrl.value = shareUrl;
 
-    btnOpenSync.onclick = () => syncModalOverlay.classList.add("active");
+    // Link cho Vợ
+    const shareUrl = `${baseOrigin}#vault=${vaultId}&role=wife&fam=${encodeURIComponent(curFam.name)}`;
+    if (syncShareUrl) syncShareUrl.value = shareUrl;
+
+    // Link chuyển dữ liệu sang ĐT
+    const transferUrl = `${baseOrigin}#import=${Store.getExportBase64()}`;
+    const syncTransferUrl = document.getElementById("sync-transfer-url");
+    if (syncTransferUrl) syncTransferUrl.value = transferUrl;
+
+    const btnCopyTransferUrl = document.getElementById("btn-copy-transfer-url");
+    const tabSyncTransfer = document.getElementById("tab-sync-transfer");
+    const tabSyncShare = document.getElementById("tab-sync-share");
+    const tabSyncBackup = document.getElementById("tab-sync-backup");
+    const paneSyncTransfer = document.getElementById("pane-sync-transfer");
+    const paneSyncShare = document.getElementById("pane-sync-share");
+    const paneSyncBackup = document.getElementById("pane-sync-backup");
+
+    // Helper đổi tab
+    const switchSyncTab = (tabName) => {
+      [
+        { btn: tabSyncTransfer, pane: paneSyncTransfer, id: "transfer" },
+        { btn: tabSyncShare, pane: paneSyncShare, id: "share" },
+        { btn: tabSyncBackup, pane: paneSyncBackup, id: "backup" }
+      ].forEach(item => {
+        if (item.btn && item.pane) {
+          if (item.id === tabName) {
+            item.btn.classList.add("active");
+            item.pane.style.display = "block";
+          } else {
+            item.btn.classList.remove("active");
+            item.pane.style.display = "none";
+          }
+        }
+      });
+
+      if (tabName === "transfer") {
+        const latestTransferUrl = `${baseOrigin}#import=${Store.getExportBase64()}`;
+        if (syncTransferUrl) syncTransferUrl.value = latestTransferUrl;
+        drawSimpleQR(latestTransferUrl, "qr-transfer-canvas");
+      } else if (tabName === "share") {
+        drawSimpleQR(shareUrl, "qr-canvas");
+      }
+    };
+
+    tabSyncTransfer?.addEventListener("click", () => switchSyncTab("transfer"));
+    tabSyncShare?.addEventListener("click", () => switchSyncTab("share"));
+    tabSyncBackup?.addEventListener("click", () => switchSyncTab("backup"));
+
+    btnOpenSync.onclick = () => {
+      syncModalOverlay.classList.add("active");
+      switchSyncTab("transfer");
+    };
+
     btnCloseSyncModal.onclick = () => syncModalOverlay.classList.remove("active");
     syncModalOverlay.onclick = (e) => {
       if (e.target === syncModalOverlay) syncModalOverlay.classList.remove("active");
     };
 
+    // Copy link nạp ĐT
+    btnCopyTransferUrl?.addEventListener("click", () => {
+      const latestTransferUrl = `${baseOrigin}#import=${Store.getExportBase64()}`;
+      navigator.clipboard.writeText(latestTransferUrl).then(() => {
+        showToast("Đã sao chép link nạp ĐT! Hãy gửi qua Zalo rồi bấm mở trên điện thoại", "fa-clipboard-check");
+      });
+    });
+
+    // Copy link Zalo cho Vợ
     btnCopyShareUrl.onclick = () => {
       navigator.clipboard.writeText(shareUrl).then(() => {
         showToast("Đã sao chép link Zalo! Hãy gửi cho vợ", "fa-clipboard-check");
       });
     };
 
-    // Vẽ QR Code đơn giản lên Canvas
-    drawSimpleQR(shareUrl);
+    // Backup & Restore handlers
+    const btnCopyBackupCode = document.getElementById("btn-copy-backup-code");
+    const btnDownloadBackupFile = document.getElementById("btn-download-backup-file");
+    const inputRestoreCode = document.getElementById("input-restore-code");
+    const btnRestoreData = document.getElementById("btn-restore-data");
+    const fileImportBackup = document.getElementById("file-import-backup");
+    const btnTriggerFileImport = document.getElementById("btn-trigger-file-import");
+
+    btnCopyBackupCode?.addEventListener("click", () => {
+      const jsonStr = Store.exportDataJSON();
+      navigator.clipboard.writeText(jsonStr).then(() => {
+        showToast("Đã sao chép mã sao lưu vào bộ nhớ tạm!", "fa-clipboard-check");
+      });
+    });
+
+    btnDownloadBackupFile?.addEventListener("click", () => {
+      const jsonStr = Store.exportDataJSON();
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `omniwallet_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Đã tải file sao lưu về máy!", "fa-circle-down");
+    });
+
+    btnRestoreData?.addEventListener("click", () => {
+      const code = inputRestoreCode ? inputRestoreCode.value.trim() : "";
+      if (!code) {
+        showToast("Vui lòng dán chuỗi mã sao lưu", "fa-circle-exclamation");
+        return;
+      }
+      const res = Store.importDataJSON(code);
+      if (res.success) {
+        if (inputRestoreCode) inputRestoreCode.value = "";
+        syncModalOverlay.classList.remove("active");
+        renderAll();
+        showToast(`Khôi phục thành công ${res.count} giao dịch!`, "fa-circle-check");
+      } else {
+        showToast("Mã sao lưu không hợp lệ: " + res.error, "fa-circle-xmark");
+      }
+    });
+
+    btnTriggerFileImport?.addEventListener("click", () => {
+      fileImportBackup?.click();
+    });
+
+    fileImportBackup?.addEventListener("change", () => {
+      const file = fileImportBackup.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const res = Store.importDataJSON(e.target.result);
+        if (res.success) {
+          syncModalOverlay.classList.remove("active");
+          renderAll();
+          showToast(`Khôi phục thành công ${res.count} giao dịch từ file!`, "fa-circle-check");
+        } else {
+          showToast("Lỗi đọc file: " + res.error, "fa-circle-xmark");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Vẽ QR mặc định cho transfer
+    drawSimpleQR(transferUrl, "qr-transfer-canvas");
 
     // Lưu cấu hình Supabase
     document.getElementById("btn-save-supabase-cfg")?.addEventListener("click", () => {
@@ -1278,26 +1412,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function drawSimpleQR(text) {
-    const canvas = document.getElementById("qr-canvas");
+  function drawSimpleQR(text, canvasId = "qr-canvas") {
+    const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    const width = canvas.width || 180;
+    const height = canvas.height || 180;
 
     // Vẽ nền trắng trong khi chờ
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, 180, 180);
+    ctx.fillRect(0, 0, width, height);
 
     // Tải mã QR thật có thể quét bằng camera điện thoại
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      ctx.clearRect(0, 0, 180, 180);
-      ctx.drawImage(img, 0, 0, 180, 180);
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
     };
     img.onerror = () => {
       // Fallback nếu không có internet: vẽ pattern QR mô phỏng
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, 180, 180);
+      ctx.fillRect(0, 0, width, height);
       ctx.fillStyle = "#0f172a";
       for (let i = 0; i < 9; i++) {
         for (let j = 0; j < 9; j++) {
@@ -1307,7 +1443,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     };
-    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(text)}`;
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${width}x${height}&data=${encodeURIComponent(text)}`;
   }
 
   // ==================== FAMILY & MEMBER MANAGEMENT MODAL ====================

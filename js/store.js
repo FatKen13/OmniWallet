@@ -90,11 +90,46 @@ const Store = (() => {
       state.settings.currentFamilyId = curFam.id;
       state.settings.vaultId = curFam.vaultId;
 
-      // Kiểm tra tham số URL nếu mở từ link mời Zalo: vd ...#vault=xyz&role=wife&fam=...
+      // Kiểm tra tham số URL nếu mở từ link mời Zalo hoặc link chuyển dữ liệu
       const hashParams = (typeof window !== "undefined" && window.location) ? new URLSearchParams(window.location.hash.substring(1)) : new URLSearchParams();
       const sharedVault = hashParams.get("vault");
       const roleParam = hashParams.get("role");
       const famNameParam = hashParams.get("fam");
+      const importParam = hashParams.get("import") || hashParams.get("data");
+
+      let importedFromUrl = false;
+      if (importParam) {
+        try {
+          let decodedStr = "";
+          if (importParam.startsWith("{")) {
+            decodedStr = decodeURIComponent(importParam);
+          } else {
+            const binaryStr = atob(importParam);
+            const bytes = Uint8Array.from(binaryStr, c => c.charCodeAt(0));
+            decodedStr = new TextDecoder().decode(bytes);
+          }
+          const imported = JSON.parse(decodedStr);
+          if (imported && (Array.isArray(imported.transactions) || imported.settings)) {
+            if (Array.isArray(imported.transactions)) {
+              state.transactions = imported.transactions;
+              save();
+            }
+            if (imported.settings && typeof imported.settings === "object") {
+              state.settings = { ...state.settings, ...imported.settings };
+              saveSettings();
+            }
+            importedFromUrl = true;
+            if (typeof window !== "undefined") {
+              window._omniwallet_imported_from_url = true;
+              if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, "", window.location.pathname);
+              }
+            }
+          }
+        } catch (e) {
+          console.error("[Store] Lỗi giải mã dữ liệu URL:", e);
+        }
+      }
 
       if (sharedVault) {
         let existingFam = state.settings.families.find(f => f.vaultId === sharedVault);
@@ -115,12 +150,14 @@ const Store = (() => {
       }
       saveSettings();
 
-      const rawData = (typeof localStorage !== "undefined") ? localStorage.getItem(STORAGE_KEY) : null;
-      if (rawData) {
-        state.transactions = JSON.parse(rawData);
-      } else {
-        state.transactions = getInitialSeedData(state.settings.activeAuthor);
-        save();
+      if (!importedFromUrl) {
+        const rawData = (typeof localStorage !== "undefined") ? localStorage.getItem(STORAGE_KEY) : null;
+        if (rawData) {
+          state.transactions = JSON.parse(rawData);
+        } else {
+          state.transactions = getInitialSeedData(state.settings.activeAuthor);
+          save();
+        }
       }
 
       // Tự động đồng bộ ID và giao dịch nếu tên con cái đã được đổi (VD: id là 'Bo' nhưng tên là 'Vừng')
@@ -875,6 +912,53 @@ const Store = (() => {
     return val;
   }
 
+  // Backup & Restore methods
+  function exportDataJSON() {
+    const payload = {
+      version: 2,
+      exportDate: new Date().toISOString(),
+      transactions: state.transactions,
+      settings: state.settings
+    };
+    return JSON.stringify(payload, null, 2);
+  }
+
+  function getExportBase64() {
+    const payload = {
+      transactions: state.transactions,
+      settings: state.settings
+    };
+    const jsonStr = JSON.stringify(payload);
+    const bytes = new TextEncoder().encode(jsonStr);
+    let binaryStr = "";
+    bytes.forEach(b => binaryStr += String.fromCharCode(b));
+    return btoa(binaryStr);
+  }
+
+  function importDataJSON(input) {
+    try {
+      let dataObj = typeof input === "string" ? JSON.parse(input.trim()) : input;
+      if (!dataObj) throw new Error("Dữ liệu trống hoặc không hợp lệ");
+
+      if (Array.isArray(dataObj.transactions)) {
+        state.transactions = dataObj.transactions;
+        save();
+      } else if (Array.isArray(dataObj)) {
+        state.transactions = dataObj;
+        save();
+      }
+
+      if (dataObj.settings && typeof dataObj.settings === "object") {
+        state.settings = { ...state.settings, ...dataObj.settings };
+        saveSettings();
+      }
+
+      return { success: true, count: state.transactions.length };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
   return {
     init,
     state,
@@ -890,6 +974,10 @@ const Store = (() => {
     formatNumber,
     parseNumber,
     saveSettings,
+    // Backup & Restore
+    exportDataJSON,
+    getExportBase64,
+    importDataJSON,
     // Period & Report methods
     getPeriod,
     setPeriod,

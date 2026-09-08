@@ -437,55 +437,131 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL 3: CHIA SẺ VÍ GIA ĐÌNH (MAGIC LINK) ==================== -->
+  <!-- ==================== MODAL 3: CHIA SẺ VÍ GIA ĐÌNH & ĐỒNG BỘ ĐIỆN THOẠI ==================== -->
   <div class="modal-overlay" id="sync-modal-overlay">
     <div class="bottom-sheet" id="sync-sheet">
       <div class="sheet-drag-handle"></div>
       
       <div class="sheet-header">
-        <h3 class="sheet-title">Chia Sẻ Ví Cho Vợ / Chồng</h3>
+        <div class="sheet-title-box">
+          <h3 class="sheet-title">Đồng Bộ & Dùng Trên ĐT</h3>
+          <span class="sheet-subtitle">Chuyển dữ liệu sang đt, chia sẻ cho vợ & sao lưu</span>
+        </div>
         <button class="sheet-close-btn" id="btn-close-sync-modal"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
+      <!-- Segmented Sub-tabs for Sync Modal -->
+      <div class="family-tab-nav" style="margin: 0.5rem 1rem 0.8rem 1rem;">
+        <button class="fam-tab-btn active" id="tab-sync-transfer" data-tab="transfer">
+          <i class="fa-solid fa-mobile-screen"></i> Chuyển Sang ĐT
+        </button>
+        <button class="fam-tab-btn" id="tab-sync-share" data-tab="share">
+          <i class="fa-solid fa-heart"></i> Chia Sẻ Cho Vợ
+        </button>
+        <button class="fam-tab-btn" id="tab-sync-backup" data-tab="backup">
+          <i class="fa-solid fa-database"></i> Sao Lưu / Dán Mã
+        </button>
+      </div>
+
       <div class="sync-modal-body">
-        <p class="sync-desc">
-          Gửi đường link bí mật này qua <strong>Zalo</strong> hoặc <strong>Tin Nhắn</strong> cho vợ. Vợ chỉ cần bấm vào link là 2 máy tự động đồng bộ chung 1 ví gia đình!
-        </p>
+        <!-- PANE 1: CHUYỂN SANG ĐIỆN THOẠI -->
+        <div class="sync-tab-pane active" id="pane-sync-transfer">
+          <div class="fam-info-banner">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <div>
+              <strong>Nạp dữ liệu vào điện thoại trong 1 giây:</strong> Dùng camera điện thoại quét mã QR bên dưới, hoặc sao chép link gửi qua Zalo cho chính mình rồi bấm mở trên điện thoại.
+            </div>
+          </div>
 
-        <!-- QR Code Display Canvas -->
-        <div class="qr-box">
-          <canvas id="qr-canvas" width="180" height="180"></canvas>
-          <small>Hoặc quét mã QR trực tiếp từ điện thoại của vợ</small>
+          <div class="qr-box">
+            <canvas id="qr-transfer-canvas" width="200" height="200"></canvas>
+            <small>Dùng camera điện thoại quét mã này để nạp dữ liệu tức thì</small>
+          </div>
+
+          <div class="link-copy-box">
+            <input type="text" id="sync-transfer-url" readonly class="share-url-input">
+            <button class="copy-url-btn" id="btn-copy-transfer-url">
+              <i class="fa-regular fa-copy"></i> Sao chép Link
+            </button>
+          </div>
         </div>
 
-        <!-- Secret Link Box -->
-        <div class="link-copy-box">
-          <input type="text" id="sync-share-url" readonly class="share-url-input">
-          <button class="copy-url-btn" id="btn-copy-share-url">
-            <i class="fa-regular fa-copy"></i> Sao chép
-          </button>
+        <!-- PANE 2: CHIA SẺ CHO VỢ -->
+        <div class="sync-tab-pane" id="pane-sync-share" style="display: none;">
+          <div class="fam-info-banner">
+            <i class="fa-solid fa-heart"></i>
+            <div>
+              Gửi link này cho vợ. Vợ bấm vào là kết nối chung vào ví gia đình với vai trò <strong>Vợ</strong>!
+            </div>
+          </div>
+
+          <div class="qr-box">
+            <canvas id="qr-canvas" width="180" height="180"></canvas>
+            <small>Hoặc quét mã QR trực tiếp từ điện thoại của vợ</small>
+          </div>
+
+          <div class="link-copy-box">
+            <input type="text" id="sync-share-url" readonly class="share-url-input">
+            <button class="copy-url-btn" id="btn-copy-share-url">
+              <i class="fa-regular fa-copy"></i> Sao chép link Zalo
+            </button>
+          </div>
+          <small style="color:var(--text-muted);display:block;margin-top:0.4rem;text-align:center;">
+            💡 Link này tự động dùng địa chỉ Online để vợ mở được trên mọi mạng Wi-Fi / 4G.
+          </small>
         </div>
 
-        <!-- Supabase Realtime Config (Optional / Advanced) -->
-        <details class="advanced-sync-details">
-          <summary><i class="fa-solid fa-cloud"></i> Cấu hình Đồng bộ Đám Mây Supabase</summary>
-          <div class="advanced-content">
-            <small>Nhập thông tin project Supabase miễn phí của bạn để đồng bộ realtime tức thì qua mạng:</small>
-            <input type="text" id="cfg-supabase-url" placeholder="Supabase URL (vd: https://xyz.supabase.co)" class="sheet-text-input">
-            <input type="password" id="cfg-supabase-key" placeholder="Supabase Anon Key" class="sheet-text-input">
-            <button class="btn-save-cfg" id="btn-save-supabase-cfg">Lưu Cấu Hình Supabase</button>
+        <!-- PANE 3: SAO LƯU & KHÔI PHỤC -->
+        <div class="sync-tab-pane" id="pane-sync-backup" style="display: none;">
+          <div class="backup-section" style="margin-bottom: 1.25rem;">
+            <h4 style="font-size:0.9rem;font-weight:700;margin-bottom:0.4rem;color:var(--text-primary);"><i class="fa-solid fa-cloud-arrow-up"></i> Sao Lưu Dữ Liệu</h4>
+            <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.6rem;">Xuất mã sao lưu hoặc tải file JSON để cất giữ phòng khi đổi thiết bị.</p>
+            <div style="display:flex;gap:0.5rem;">
+              <button class="btn-save-cfg" id="btn-copy-backup-code" style="flex:1;background:var(--brand-gradient);color:#fff;">
+                <i class="fa-regular fa-copy"></i> Copy Mã Sao Lưu
+              </button>
+              <button class="btn-save-cfg" id="btn-download-backup-file" style="flex:1;background:var(--bg-surface-elevated);color:var(--text-primary);border:1px solid var(--border-color);">
+                <i class="fa-solid fa-file-arrow-down"></i> Tải File .json
+              </button>
+            </div>
           </div>
-        </details>
 
-        <!-- Gemini API Key (Optional / Advanced) -->
-        <details class="advanced-sync-details">
-          <summary><i class="fa-solid fa-robot"></i> Cấu hình Google Gemini API Key</summary>
-          <div class="advanced-content">
-            <small>Nhập Gemini API Key miễn phí của bạn để kích hoạt khả năng suy luận tài chính nâng cao:</small>
-            <input type="password" id="cfg-gemini-key" placeholder="AIzaSy..." class="sheet-text-input">
-            <button class="btn-save-cfg" id="btn-save-gemini-cfg">Lưu Gemini Key</button>
+          <div class="restore-section" style="margin-bottom: 1.25rem;">
+            <h4 style="font-size:0.9rem;font-weight:700;margin-bottom:0.4rem;color:var(--text-primary);"><i class="fa-solid fa-rotate-left"></i> Khôi Phục Dữ Liệu</h4>
+            <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.6rem;">Dán chuỗi mã sao lưu hoặc chọn file .json đã lưu trước đó:</p>
+            <textarea id="input-restore-code" class="sheet-text-input" rows="3" placeholder="Dán chuỗi mã sao lưu vào đây..."></textarea>
+            <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+              <button class="btn-save-cfg" id="btn-restore-data" style="flex:1;">
+                <i class="fa-solid fa-circle-check"></i> Khôi Phục
+              </button>
+              <input type="file" id="file-import-backup" accept=".json" style="display:none;">
+              <button class="btn-save-cfg" id="btn-trigger-file-import" style="flex:1;background:var(--bg-surface-elevated);color:var(--text-primary);border:1px solid var(--border-color);">
+                <i class="fa-solid fa-folder-open"></i> Chọn File
+              </button>
+            </div>
           </div>
-        </details>
+
+          <!-- Supabase Realtime Config (Optional / Advanced) -->
+          <details class="advanced-sync-details">
+            <summary><i class="fa-solid fa-cloud"></i> Cấu hình Đồng bộ Đám Mây Supabase</summary>
+            <div class="advanced-content">
+              <small>Nhập thông tin project Supabase miễn phí của bạn để đồng bộ realtime tức thì qua mạng:</small>
+              <input type="text" id="cfg-supabase-url" placeholder="Supabase URL (vd: https://xyz.supabase.co)" class="sheet-text-input">
+              <input type="password" id="cfg-supabase-key" placeholder="Supabase Anon Key" class="sheet-text-input">
+              <button class="btn-save-cfg" id="btn-save-supabase-cfg">Lưu Cấu Hình Supabase</button>
+            </div>
+          </details>
+
+          <!-- Gemini API Key (Optional / Advanced) -->
+          <details class="advanced-sync-details">
+            <summary><i class="fa-solid fa-robot"></i> Cấu hình Google Gemini API Key</summary>
+            <div class="advanced-content">
+              <small>Nhập Gemini API Key miễn phí của bạn để kích hoạt khả năng suy luận tài chính nâng cao:</small>
+              <input type="password" id="cfg-gemini-key" placeholder="AIzaSy..." class="sheet-text-input">
+              <button class="btn-save-cfg" id="btn-save-gemini-cfg">Lưu Gemini Key</button>
+            </div>
+          </details>
+        </div>
       </div>
 
     </div>
